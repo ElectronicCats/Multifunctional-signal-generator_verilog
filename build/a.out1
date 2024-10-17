@@ -1,24 +1,18 @@
-**** module/scope: adsr_generator
-     Flip-Flops   : 20
-     Logic Gates  : 220
-     ADDER[8]: 3 units
-     EQUALITY[8]: 2 units
+**** module/scope: triangular_wave_generator
+     Flip-Flops   : 17
+     Logic Gates  : 72
+     ADDER[8]: 1 units
      MAGNITUDE[8]: 2 units
-     MAGNITUDE[32]: 1 units
-     MUX[2]: 16 slices
-     LPM[5]: 6 unaccounted
-     LPM[8]: 2 unaccounted
-     LOG[13]: 3 unaccounted
+     MUX[2]: 11 slices
+     LPM[8]: 1 unaccounted
+     LOG[13]: 1 unaccounted
      LOG[14]: 1 unaccounted
 **** TOTALS
-     Flip-Flops   : 20
-     Logic Gates  : 220
-     ADDER[8]: 3 units
-     EQUALITY[8]: 2 units
+     Flip-Flops   : 17
+     Logic Gates  : 72
+     ADDER[8]: 1 units
      MAGNITUDE[8]: 2 units
-     MAGNITUDE[32]: 1 units
-     MUX[2]: 16 slices
-     LPM[5]: 6 unaccounted
-     LPM[8]: 2 unaccounted
-     LOG[13]: 3 unaccounted
+     MUX[2]: 11 slices
+     LPM[8]: 1 unaccounted
+     LOG[13]: 1 unaccounted
      LOG[14]: 1 unaccounted
