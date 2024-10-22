@@ -11,34 +11,55 @@ module tt_um_waves (
     input  wire [7:0] uio_in,   // IOs: Input path
     output wire [7:0] uio_out,  // IOs: Output path
     output wire [7:0] uio_oe,   // IOs: Enable path (active high: 0=input, 1=output)
-    input  wire       ena,      // will go high when the design is enabled
-    input  wire       clk,      // clock
-    input  wire       rst_n     // reset_n - low to reset
+    input  wire       ena,      // Will go high when the design is enabled
+    input  wire       clk,      // Clock
+    input  wire       rst_n     // Reset_n - low to reset
 );
 
-    // Mapping Tiny Tapeout inputs to internal signals
-    wire reset = ~rst_n;
+    // Internal signals
     wire [5:0] freq_select = ui_in[5:0];    // Frequency selection from the first 6 bits of ui_in
     wire [1:0] wave_select = ui_in[7:6];    // Wave type selection from the last 2 bits of ui_in
 
-    // Use uio_in for attack parameter, the only value that fits in 8 bits
-    wire [7:0] attack = uio_in;   // Since uio_in is only 8 bits, we can only use this for a single value
+    // Encoder input signals
+    wire encoder_a_attack = uio_in[0]; // Encoder A for attack
+    wire encoder_b_attack = uio_in[1]; // Encoder B for attack
+    wire encoder_a_decay = uio_in[2];  // Encoder A for decay
+    wire encoder_b_decay = uio_in[3];  // Encoder B for decay
+    wire encoder_a_sustain = uio_in[4];// Encoder A for sustain
+    wire encoder_b_sustain = uio_in[5];// Encoder B for sustain
+  wire encoder_a_release = uio_in[6];// Enc oder A for release
+    wire encoder_b_release = uio_in[7];// Encoder B for release
 
-    // Internally fixed values for decay, sustain, and release since we only have 8 bits for inputs
-    wire [7:0] decay = 8'd128;
-    wire [7:0] sustain = 8'd128;
-    wire [7:0] rel = 8'd128;
+    // ADSR parameter values controlled by encoders
+    wire [7:0] attack;
+    wire [7:0] decay;
+    wire [7:0] sustain;
+    wire [7:0] rel;
 
-    // Internal signals
-    wire [7:0] tri_wave_out, saw_wave_out, sqr_wave_out, sine_wave_out, adsr_amplitude;
-    reg [7:0] selected_wave;
+    // Clock divider signals
     reg [31:0] clk_div, clk_div_threshold;
     reg clk_divided;
+    wire [7:0] tri_wave_out, saw_wave_out, sqr_wave_out, sine_wave_out, adsr_amplitude;
+    reg [7:0] selected_wave;
 
-    // Clock divider logic
+    // Clock divider logic with synchronous reset
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            clk_div <= 32'd0;
+            clk_divided <= 1'b0;
+        end else begin
+            if (clk_div >= clk_div_threshold) begin
+                clk_div <= 32'd0;
+                clk_divided <= ~clk_divided;
+            end else begin
+                clk_div <= clk_div + 1;
+            end
+        end
+    end
+
+    // Clock divider threshold selection
     always @(*) begin
         case (freq_select)
-            // Octave 2
             6'b000000: clk_div_threshold = 32'd1915712;  // C2 (65.41 Hz)
             6'b000001: clk_div_threshold = 32'd1803586;  // C#2/Db2 (69.30 Hz)
             6'b000010: clk_div_threshold = 32'd1702624;  // D2 (73.42 Hz)
@@ -53,87 +74,105 @@ module tt_um_waves (
             6'b001011: clk_div_threshold = 32'd1017340;  // B2 (123.47 Hz)
 
             // Octave 3
-            6'b001100: clk_div_threshold = 32'd957869;   // C3 (130.81 Hz)
-            6'b001101: clk_div_threshold = 32'd901803;   // C#3/Db3 (138.59 Hz)
-            6'b001110: clk_div_threshold = 32'd851315;   // D3 (146.83 Hz)
-            6'b001111: clk_div_threshold = 32'd803571;   // D#3/Eb3 (155.56 Hz)
-            6'b010000: clk_div_threshold = 32'd757576;   // E3 (164.81 Hz)
-            6'b010001: clk_div_threshold = 32'd715867;   // F3 (174.61 Hz)
-            6'b010010: clk_div_threshold = 32'd675676;   // F#3/Gb3 (185.00 Hz)
-            6'b010011: clk_div_threshold = 32'd637755;   // G3 (196.00 Hz)
-            6'b010100: clk_div_threshold = 32'd602411;   // G#3/Ab3 (207.65 Hz)
-            6'b010101: clk_div_threshold = 32'd568182;   // A3 (220.00 Hz)
-            6'b010110: clk_div_threshold = 32'd537634;   // A#3/Bb3 (233.08 Hz)
-            6'b010111: clk_div_threshold = 32'd508673;   // B3 (246.94 Hz)
+            6'b001100: clk_div_threshold = 32'd95786;    // C3 (130.81 Hz)
+            6'b001101: clk_div_threshold = 32'd90180;    // C#3/Db3 (138.59 Hz)
+            6'b001110: clk_div_threshold = 32'd85131;    // D3 (146.83 Hz)
+            6'b001111: clk_div_threshold = 32'd80357;    // D#3/Eb3 (155.56 Hz)
+            6'b010000: clk_div_threshold = 32'd75758;    // E3 (164.81 Hz)
+            6'b010001: clk_div_threshold = 32'd71586;    // F3 (174.61 Hz)
+            6'b010010: clk_div_threshold = 32'd67567;    // F#3/Gb3 (185.00 Hz)
+            6'b010011: clk_div_threshold = 32'd63775;    // G3 (196.00 Hz)
+            6'b010100: clk_div_threshold = 32'd60241;    // G#3/Ab3 (207.65 Hz)
+            6'b010101: clk_div_threshold = 32'd56818;    // A3 (220.00 Hz)
+            6'b010110: clk_div_threshold = 32'd53763;    // A#3/Bb3 (233.08 Hz)
+            6'b010111: clk_div_threshold = 32'd50867;    // B3 (246.94 Hz)
 
-            //Octave 4
-            6'b011000: clk_div_threshold = 32'd478783;   // C4 (261.63 Hz)
-            6'b011001: clk_div_threshold = 32'd450905;   // C#4/Db4 (277.18 Hz)
-            6'b011010: clk_div_threshold = 32'd425662;   // D4 (293.66 Hz)
-            6'b011011: clk_div_threshold = 32'd401785;   // D#4/Eb4 (311.13 Hz)
-            6'b011100: clk_div_threshold = 32'd378788;   // E4 (329.63 Hz)
-            6'b011101: clk_div_threshold = 32'd357931;   // F4 (349.23 Hz)
-            6'b011110: clk_div_threshold = 32'd337837;   // F#4/Gb4 (369.99 Hz)
-            6'b011111: clk_div_threshold = 32'd318878;   // G4 (392.00 Hz)
-            6'b100000: clk_div_threshold = 32'd301204;   // G#4/Ab4 (415.30 Hz)
-            6'b100001: clk_div_threshold = 32'd284091;   // A4 (440.00 Hz)
-            6'b100010: clk_div_threshold = 32'd268819;   // A#4/Bb4 (466.16 Hz)
-            6'b100011: clk_div_threshold = 32'd254344;   // B4 (493.88 Hz)
-          
-          // Octave 5
-            6'b100100: clk_div_threshold = 32'd239758;   // C5 (523.25 Hz)
-            6'b100101: clk_div_threshold = 32'd225451;   // C#5/Db5 (554.37 Hz)
-            6'b100110: clk_div_threshold = 32'd212328;   // D5 (587.33 Hz)
-            6'b100111: clk_div_threshold = 32'd200892;   // D#5/Eb5 (622.25 Hz)
-            6'b101000: clk_div_threshold = 32'd189394;   // E5 (659.25 Hz)
-            6'b101001: clk_div_threshold = 32'd178966;   // F5 (698.46 Hz)
-            6'b101010: clk_div_threshold = 32'd168919;   // F#5/Gb5 (739.99 Hz)
-            6'b101011: clk_div_threshold = 32'd159439;   // G5 (783.99 Hz)
-            6'b101100: clk_div_threshold = 32'd150602;   // G#5/Ab5 (830.61 Hz)
-            6'b101101: clk_div_threshold = 32'd142045;   // A5 (880.00 Hz)
-            6'b101110: clk_div_threshold = 32'd134410;   // A#5/Bb5 (932.33 Hz)
-            6'b101111: clk_div_threshold = 32'd127172;   // B5 (987.77 Hz)
-          
+            // Octave 4
+            6'b011000: clk_div_threshold = 32'd47878;    // C4 (261.63 Hz)
+            6'b011001: clk_div_threshold = 32'd45090;    // C#4/Db4 (277.18 Hz)
+            6'b011010: clk_div_threshold = 32'd42566;    // D4 (293.66 Hz)
+            6'b011011: clk_div_threshold = 32'd40178;    // D#4/Eb4 (311.13 Hz)
+            6'b011100: clk_div_threshold = 32'd37878;    // E4 (329.63 Hz)
+            6'b011101: clk_div_threshold = 32'd35793;    // F4 (349.23 Hz)
+            6'b011110: clk_div_threshold = 32'd33783;    // F#4/Gb4 (369.99 Hz)
+            6'b011111: clk_div_threshold = 32'd31888;    // G4 (392.00 Hz)
+            6'b100000: clk_div_threshold = 32'd30120;    // G#4/Ab4 (415.30 Hz)
+            6'b100001: clk_div_threshold = 32'd28409;    // A4 (440.00 Hz)
+            6'b100010: clk_div_threshold = 32'd26881;    // A#4/Bb4 (466.16 Hz)
+            6'b100011: clk_div_threshold = 32'd25434;    // B4 (493.88 Hz)
+
+            // Octave 5
+            6'b100100: clk_div_threshold = 32'd23939;    // C5 (523.25 Hz)
+            6'b100101: clk_div_threshold = 32'd22545;    // C#5/Db5 (554.37 Hz)
+            6'b100110: clk_div_threshold = 32'd21283;    // D5 (587.33 Hz)
+            6'b100111: clk_div_threshold = 32'd20089;    // D#5/Eb5 (622.25 Hz)
+            6'b101000: clk_div_threshold = 32'd18938;    // E5 (659.25 Hz)
+            6'b101001: clk_div_threshold = 32'd17896;    // F5 (698.46 Hz)
+            6'b101010: clk_div_threshold = 32'd16891;    // F#5/Gb5 (739.99 Hz)
+            6'b101011: clk_div_threshold = 32'd15944;    // G5 (783.99 Hz)
+            6'b101100: clk_div_threshold = 32'd15060;    // G#5/Ab5 (830.61 Hz)
+            6'b101101: clk_div_threshold = 32'd14204;    // A5 (880.00 Hz)
+            6'b101110: clk_div_threshold = 32'd13441;    // A#5/Bb5 (932.33 Hz)
+            6'b101111: clk_div_threshold = 32'd12717;    // B5 (987.77 Hz)
+
             // Octave 6
             6'b110000: clk_div_threshold = 32'd11969;    // C6 (1046.50 Hz)
-            6'b110001: clk_div_threshold = 32'd11273;    // C#6/Db6 (1108.73 Hz)
-            6'b110010: clk_div_threshold = 32'd10643;    // D6 (1174.66 Hz)
-            6'b110011: clk_div_threshold = 32'd10045;    // D#6/Eb6 (1244.51 Hz)
-            6'b110100: clk_div_threshold = 32'd9467;     // E6 (1318.51 Hz)
+            6'b110001: clk_div_threshold = 32'd11272;    // C#6/Db6 (1108.73 Hz)
+            6'b110010: clk_div_threshold = 32'd10642;    // D6 (1174.66 Hz)
+            6'b110011: clk_div_threshold = 32'd10044;    // D#6/Eb6 (1244.51 Hz)
+            6'b110100: clk_div_threshold = 32'd9470;     // E6 (1318.51 Hz)
             6'b110101: clk_div_threshold = 32'd8948;     // F6 (1396.91 Hz)
             6'b110110: clk_div_threshold = 32'd8445;     // F#6/Gb6 (1479.98 Hz)
             6'b110111: clk_div_threshold = 32'd7972;     // G6 (1567.98 Hz)
             6'b111000: clk_div_threshold = 32'd7518;     // G#6/Ab6 (1661.22 Hz)
-            6'b111001: clk_div_threshold = 32'd7102;     // A6 (1760.00 Hz)
+            6'b111001: clk_div_threshold = 32'd7090;     // A6 (1760.00 Hz)
             6'b111010: clk_div_threshold = 32'd6719;     // A#6/Bb6 (1864.66 Hz)
-            6'b111011: clk_div_threshold = 32'd6359;     // B6 (1975.53 Hz)
-
+            6'b111011: clk_div_threshold = 32'd6358;     // B6 (1975.53 Hz)
             default: clk_div_threshold = 32'd284091; // Default to A4 (440 Hz)
         endcase
     end
 
-    always @(posedge clk or posedge reset) begin
-        if (reset) begin
-            clk_div <= 32'd0;
-            clk_divided <= 1'b0;
-        end else begin
-            if (clk_div >= clk_div_threshold) begin
-                clk_div <= 32'd0;
-                clk_divided <= ~clk_divided;
-            end else begin
-                clk_div <= clk_div + 1;
-            end
-        end
-    end
+    // Instantiate encoder modules for ADSR parameters
+    encoder #(.WIDTH(8), .INCREMENT(1)) attack_encoder (
+        .clk(clk),
+        .rst_n(rst_n),
+        .a(encoder_a_attack),
+        .b(encoder_b_attack),
+        .value(attack)
+    );
 
-    // Instantiate wave generators
-    triangular_wave_generator triangle_gen (.clk(clk_divided), .reset(reset), .wave_out(tri_wave_out));
-    sawtooth_wave_generator saw_gen (.clk(clk_divided), .reset(reset), .wave_out(saw_wave_out));
-    square_wave_generator sqr_gen (.clk(clk_divided), .reset(reset), .wave_out(sqr_wave_out));
-    sine_wave_generator sine_gen (.clk(clk_divided), .reset(reset), .wave_out(sine_wave_out));
-    adsr_generator adsr_gen (.clk(clk_divided), .rst_n(~reset), .attack(attack), .decay(decay), .sustain(sustain), .rel(rel), .amplitude(adsr_amplitude));
+    encoder #(.WIDTH(8), .INCREMENT(1)) decay_encoder (
+        .clk(clk),
+        .rst_n(rst_n),
+        .a(encoder_a_decay),
+        .b(encoder_b_decay),
+        .value(decay)
+    );
 
-    // Select the wave type
+    encoder #(.WIDTH(8), .INCREMENT(1)) sustain_encoder (
+        .clk(clk),
+        .rst_n(rst_n),
+        .a(encoder_a_sustain),
+        .b(encoder_b_sustain),
+        .value(sustain)
+    );
+
+    encoder #(.WIDTH(8), .INCREMENT(1)) release_encoder (
+        .clk(clk),
+        .rst_n(rst_n),
+        .a(encoder_a_release),
+        .b(encoder_b_release),
+        .value(rel)
+    );
+
+    // Instantiate wave generators and ADSR generator
+    triangular_wave_generator triangle_gen (.clk(clk_divided), .rst_n(rst_n), .wave_out(tri_wave_out));
+    sawtooth_wave_generator saw_gen (.clk(clk_divided), .rst_n(rst_n), .wave_out(saw_wave_out));
+    square_wave_generator sqr_gen (.clk(clk_divided), .rst_n(rst_n), .wave_out(sqr_wave_out));
+    sine_wave_generator sine_gen (.clk(clk_divided), .rst_n(rst_n), .wave_out(sine_wave_out));
+    adsr_generator adsr_gen (.clk(clk_divided), .rst_n(rst_n), .attack(attack), .decay(decay), .sustain(sustain), .rel(rel), .amplitude(adsr_amplitude));
+
+    // Wave selection logic
     always @(*) begin
         case (wave_select)
             2'b00: selected_wave = tri_wave_out;
@@ -144,26 +183,26 @@ module tt_um_waves (
         endcase
     end
 
-    // Modulate wave with ADSR, ensuring correct bit-width matching
+    // Modulate wave with ADSR
     assign uo_out = (adsr_amplitude > 0 && selected_wave > 0) ? (selected_wave * adsr_amplitude) >> 8 : 0;
 
-    // Assign outputs
-    assign uio_out = adsr_amplitude;   // Output the ADSR amplitude for visualization
-    assign uio_oe = 8'b00000000;       // Set IO direction as input since we aren't using uio_out directly for anything else
+    // Unused output assignments
+    assign uio_out = 8'b0;
+    assign uio_oe = 8'b0;
 
 endmodule
 
 
 module sine_wave_generator (
-    input wire clk,                  // Reloj de entrada
-    input wire reset,                // Señal de reinicio
-    output reg [7:0] wave_out        // Salida de onda senoidal de 8 bits
+    input wire clk,                  // Clock
+    input wire rst_n,                // Active-low reset
+    output reg [7:0] wave_out        // 8-bit sine wave output
 );
 
-    reg [7:0] counter;               // Contador para indexar la tabla
-    reg [7:0] sine_table [0:255];    // Tabla de valores senoidales (256 valores de 8 bits)
+    reg [7:0] counter;               // Counter for indexing the sine table
+    reg [7:0] sine_table [0:255];    // Sine table (256 values of 8 bits)
 
-    // Inicialización de la tabla de valores senoidales
+    // Initialization of the sine wave table
     initial begin
         sine_table[0] = 8'd128;
         sine_table[1] = 8'd131;
@@ -423,73 +462,64 @@ module sine_wave_generator (
         sine_table[255] = 8'd124;
     end
 
-    // Lógica de generación de onda senoidal
-    always @(posedge clk or posedge reset) begin
-        if (reset) begin
+    // Sine wave generation logic with synchronous reset
+    always @(posedge clk) begin
+        if (!rst_n) begin
             counter <= 8'd0;
             wave_out <= 8'd0;
         end else begin
             counter <= counter + 8'd1;
-            wave_out <= sine_table[counter];  // Salida de la onda senoidal
+            wave_out <= sine_table[counter];
         end
     end
 endmodule
 
 module square_wave_generator (
-    input wire clk,                  // Reloj del sistema
-    input wire reset,                // Señal de reinicio
-    output reg [7:0] wave_out        // Salida de onda cuadrada de 8 bits
+    input wire clk,                  // Clock
+    input wire rst_n,                // Active-low reset
+    output reg [7:0] wave_out        // 8-bit square wave output
 );
 
-    reg wave_state;                  // Estado actual de la onda cuadrada
+    reg wave_state;                  // State of the square wave
 
-    // Inicialización
-    initial begin
-        wave_state = 1'b0;
-        wave_out = 8'd0;
-    end
-
-    // Generación de la onda cuadrada
-    always @(posedge clk or posedge reset) begin
-        if (reset) begin
-            wave_state <= 1'b0;        // Reiniciar el estado de la onda
-            wave_out <= 8'd0;          // Reiniciar la salida de la onda
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            wave_state <= 1'b0;
+            wave_out <= 8'd0;
         end else begin
-            wave_state <= ~wave_state;  // Cambiar el estado de la onda cuadrada
-            wave_out <= (wave_state) ? 8'd255 : 8'd0; // Establecer la salida de la onda cuadrada
+            wave_state <= ~wave_state;
+            wave_out <= wave_state ? 8'd255 : 8'd0;
         end
     end
-
 endmodule
+
 
 
 module sawtooth_wave_generator (
-    input wire clk,            // Reloj de entrada
-    input wire reset,          // Señal de reinicio
-    output reg [7:0] wave_out  // Salida de onda diente de sierra de 8 bits
+    input wire clk,                  // Clock
+    input wire rst_n,                // Active-low reset
+    output reg [7:0] wave_out        // 8-bit sawtooth wave output
 );
 
-    reg [7:0] counter;  // Contador para la onda diente de sierra
+    reg [7:0] counter;
 
-    // Lógica del generador de onda diente de sierra
-    always @(posedge clk or posedge reset) begin
-        if (reset) begin
-            counter <= 8'd0;  // Reiniciar el contador a 0
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            counter <= 8'd0;
         end else begin
-            counter <= counter + 1;  // Incrementar el contador
+            counter <= counter + 1;
         end
     end
 
-    // Asignar el valor del contador a la salida
     always @(posedge clk) begin
         wave_out <= counter;
     end
-
 endmodule
+
 
 module adsr_generator (
     input  wire       clk,       // Clock
-    input  wire       rst_n,     // Reset, active low
+    input  wire       rst_n,     // Active-low reset
     input  wire [7:0] attack,    // Attack value
     input  wire [7:0] decay,     // Decay value
     input  wire [7:0] sustain,   // Sustain value
@@ -497,36 +527,31 @@ module adsr_generator (
     output reg  [7:0] amplitude  // Generated amplitude signal
 );
 
-    reg [3:0] state;  // State of ADSR: 0=idle, 1=attack, 2=decay, 3=sustain, 4=release
-    reg [7:0] counter;  // A counter to handle timing of each phase
+    reg [3:0] state;
+    reg [7:0] counter;
 
-    // Define states for better readability
     localparam STATE_IDLE     = 4'd0;
     localparam STATE_ATTACK   = 4'd1;
     localparam STATE_DECAY    = 4'd2;
     localparam STATE_SUSTAIN  = 4'd3;
     localparam STATE_RELEASE  = 4'd4;
 
-    always @(posedge clk or negedge rst_n) begin
+    always @(posedge clk) begin
         if (!rst_n) begin
-            // On reset, return to idle state and reset amplitude
             state <= STATE_IDLE;
             amplitude <= 8'd0;
             counter <= 8'd0;
         end else begin
             case (state)
                 STATE_IDLE: begin
-                    // Start the attack phase based on some external trigger condition
-                    // Example trigger: counter reaches a certain value
                     if (counter == 8'd255) begin
                         state <= STATE_ATTACK;
-                        counter <= 8'd0;  // Reset the counter for the next phase
+                        counter <= 8'd0;
                     end else begin
                         counter <= counter + 1;
                     end
                 end
                 STATE_ATTACK: begin
-                    // Increase amplitude until it reaches the attack value
                     if (amplitude < attack) begin
                         amplitude <= amplitude + 1;
                     end else begin
@@ -534,7 +559,6 @@ module adsr_generator (
                     end
                 end
                 STATE_DECAY: begin
-                    // Decrease amplitude until it reaches the sustain level
                     if (amplitude > sustain) begin
                         amplitude <= amplitude - 1;
                     end else begin
@@ -542,66 +566,98 @@ module adsr_generator (
                     end
                 end
                 STATE_SUSTAIN: begin
-                    // Maintain amplitude at sustain level until release condition is met
                     amplitude <= sustain;
-                    
-                    // Check for release condition (external trigger or timer)
                     if (counter == 8'd255) begin
                         state <= STATE_RELEASE;
-                        counter <= 8'd0;  // Reset counter for the release phase
+                        counter <= 8'd0;
                     end else begin
                         counter <= counter + 1;
                     end
                 end
                 STATE_RELEASE: begin
-                    // Gradually decrease amplitude to zero (release phase)
                     if (amplitude > 0) begin
                         amplitude <= amplitude - 1;
                     end else begin
-                        state <= STATE_IDLE;  // Return to idle once the release phase ends
+                        state <= STATE_IDLE;
                     end
                 end
-                default: state <= STATE_IDLE;  // Fallback to idle state in case of an unknown state
+                default: state <= STATE_IDLE;
             endcase
         end
     end
 endmodule
 
+
 module triangular_wave_generator (
-    input wire clk,            // Reloj de entrada
-    input wire reset,          // Señal de reinicio
-    output reg [7:0] wave_out  // Salida de onda triangular de 8 bits
+    input wire clk,                  // Clock
+    input wire rst_n,                // Active-low reset
+    output reg [7:0] wave_out        // 8-bit triangular wave output
 );
 
-    reg [7:0] counter;  // Contador para la onda triangular
-    reg direction;      // Dirección del contador (ascendente o descendente)
+    reg [7:0] counter;
+    reg direction;
 
-    // Lógica del generador de onda triangular
-    always @(posedge clk or posedge reset) begin
-        if (reset) begin
-            counter <= 8'd0;      // Reiniciar el contador a 0
-            direction <= 1'b1;    // Iniciar en modo ascendente
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            counter <= 8'd0;
+            direction <= 1'b1;
         end else begin
             if (direction) begin
                 if (counter < 8'd255) begin
-                    counter <= counter + 1;  // Incrementar el contador
+                    counter <= counter + 1;
                 end else begin
-                    direction <= 1'b0;  // Cambiar a modo descendente
+                    direction <= 1'b0;
                 end
             end else begin
                 if (counter > 8'd0) begin
-                    counter <= counter - 1;  // Decrementar el contador
+                    counter <= counter - 1;
                 end else begin
-                    direction <= 1'b1;  // Cambiar a modo ascendente
+                    direction <= 1'b1;
                 end
             end
         end
     end
 
-    // Asignar el valor del contador a la salida
     always @(posedge clk) begin
         wave_out <= counter;
     end
-
 endmodule
 
+
+module encoder #(
+    parameter WIDTH = 8,        // Width of the output value
+    parameter INCREMENT = 1'b1  // Amount to increment or decrement
+)(
+    input clk,                  // System clock
+    input rst_n,                // Active-low reset
+    input a,                    // Encoder input A
+    input b,                    // Encoder input B
+    output reg [WIDTH-1:0] value // Output value
+);
+
+    // Internal signals for previous states of encoder inputs
+    reg old_a, old_b;
+    reg [1:0] state;  // State of encoder inputs
+
+    // Encoder state transition table based on Gray code
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            old_a <= 0;
+            old_b <= 0;
+            value <= 0;
+            state <= 2'b00;
+        end else begin
+            old_a <= a;
+            old_b <= b;
+            state <= {a, b};
+
+            // Update value based on encoder state transitions
+            case ({a, old_a, b, old_b})
+                4'b1000, 4'b0111: value <= value + INCREMENT; // Clockwise rotation
+                4'b0010, 4'b1101: value <= value - INCREMENT; // Counter-clockwise rotation
+                default: value <= value; // No change for invalid or noise states
+            endcase
+        end
+    end
+
+endmodule
