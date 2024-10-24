@@ -11,14 +11,8 @@ module tt_um_waves (
     input  wire [7:0] uio_in,   // IOs: Input path
     output wire [7:0] uio_out,  // IOs: Output path
     output wire [7:0] uio_oe,   // IOs: Enable path (active high: 0=input, 1=output)
-    input  wire       ena,      // Will go high when the design is enabled
-    input  wire       clk,      // Clock
     input  wire       rst_n     // Reset_n - low to reset
 );
-
-    /* verilator lint_off UNUSEDSIGNAL */
-    // The `ena` signal is currently not used in this design
-    /* verilator lint_on UNUSEDSIGNAL */
 
     // Internal signals
     wire [5:0] freq_select = ui_in[5:0];    // Frequency selection from the first 6 bits of ui_in
@@ -540,7 +534,7 @@ module adsr_generator (
     localparam STATE_SUSTAIN  = 4'd3;
     localparam STATE_RELEASE  = 4'd4;
 
-    always @(posedge clk or negedge rst_n) begin
+    always @(posedge clk) begin
         if (!rst_n) begin
             state <= STATE_IDLE;
             amplitude <= 8'd0;

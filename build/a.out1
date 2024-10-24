@@ -10,12 +10,12 @@
      LOG[14]: 1 unaccounted
 **** module/scope: tt_um_waves.adsr_gen
      Flip-Flops   : 20
-     Logic Gates  : 220
+     Logic Gates  : 263
      ADDER[8]: 3 units
      EQUALITY[8]: 2 units
      MAGNITUDE[8]: 2 units
      MAGNITUDE[32]: 1 units
-     MUX[2]: 16 slices
+     MUX[2]: 36 slices
      LPM[5]: 6 unaccounted
      LPM[8]: 2 unaccounted
      LOG[13]: 3 unaccounted
@@ -88,13 +88,13 @@
      LOG[14]: 1 unaccounted
 **** TOTALS
      Flip-Flops   : 151
-     Logic Gates  : 1481
+     Logic Gates  : 1524
      ADDER[8]: 6 units
      ADDER[32]: 9 units
      EQUALITY[8]: 2 units
      MAGNITUDE[8]: 4 units
      MAGNITUDE[32]: 4 units
-     MUX[2]: 214 slices
+     MUX[2]: 234 slices
      LPM[4]: 1 unaccounted
      LPM[5]: 12 unaccounted
      LPM[8]: 11 unaccounted
