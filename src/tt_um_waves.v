@@ -16,6 +16,10 @@ module tt_um_waves (
     input  wire       rst_n     // Reset_n - low to reset
 );
 
+    /* verilator lint_off UNUSEDSIGNAL */
+    // The `ena` signal is currently not used in this design
+    /* verilator lint_on UNUSEDSIGNAL */
+
     // Internal signals
     wire [5:0] freq_select = ui_in[5:0];    // Frequency selection from the first 6 bits of ui_in
     wire [1:0] wave_select = ui_in[7:6];    // Wave type selection from the last 2 bits of ui_in
@@ -536,7 +540,7 @@ module adsr_generator (
     localparam STATE_SUSTAIN  = 4'd3;
     localparam STATE_RELEASE  = 4'd4;
 
-    always @(posedge clk) begin
+    always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             state <= STATE_IDLE;
             amplitude <= 8'd0;
@@ -559,8 +563,9 @@ module adsr_generator (
                     end
                 end
                 STATE_DECAY: begin
+                    // Use the decay parameter to adjust the rate of decrease
                     if (amplitude > sustain) begin
-                        amplitude <= amplitude - 1;
+                        amplitude <= amplitude - decay;
                     end else begin
                         state <= STATE_SUSTAIN;
                     end
@@ -575,8 +580,9 @@ module adsr_generator (
                     end
                 end
                 STATE_RELEASE: begin
+                    // Use the release parameter to adjust the rate of decrease
                     if (amplitude > 0) begin
-                        amplitude <= amplitude - 1;
+                        amplitude <= amplitude - rel;
                     end else begin
                         state <= STATE_IDLE;
                     end
@@ -625,39 +631,31 @@ endmodule
 
 
 module encoder #(
-    parameter WIDTH = 8,        // Width of the output value
-    parameter INCREMENT = 1'b1  // Amount to increment or decrement
+    parameter WIDTH = 8,
+    parameter INCREMENT = 1'b1
 )(
-    input clk,                  // System clock
-    input rst_n,                // Active-low reset
-    input a,                    // Encoder input A
-    input b,                    // Encoder input B
-    output reg [WIDTH-1:0] value // Output value
+    input clk,
+    input rst_n,
+    input a,
+    input b,
+    output reg [WIDTH-1:0] value
 );
 
-    // Internal signals for previous states of encoder inputs
     reg old_a, old_b;
-    reg [1:0] state;  // State of encoder inputs
 
-    // Encoder state transition table based on Gray code
     always @(posedge clk) begin
         if (!rst_n) begin
             old_a <= 0;
             old_b <= 0;
             value <= 0;
-            state <= 2'b00;
         end else begin
             old_a <= a;
             old_b <= b;
-            state <= {a, b};
-
-            // Update value based on encoder state transitions
             case ({a, old_a, b, old_b})
-                4'b1000, 4'b0111: value <= value + INCREMENT; // Clockwise rotation
-                4'b0010, 4'b1101: value <= value - INCREMENT; // Counter-clockwise rotation
-                default: value <= value; // No change for invalid or noise states
+                4'b1000, 4'b0111: value <= value + INCREMENT;
+                4'b0010, 4'b1101: value <= value - INCREMENT;
+                default: value <= value;
             endcase
         end
     end
-
 endmodule
