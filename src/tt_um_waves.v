@@ -11,8 +11,8 @@ module tt_um_waves (
     input  wire [7:0] uio_in,   // IOs: Input path
     output wire [7:0] uio_out,  // IOs: Output path
     output wire [7:0] uio_oe,   // IOs: Enable path (active high: 0=input, 1=output)
-    input  wire       rst_n,     // Reset_n - low to reset}
-    input  wire       clk      // Clock
+    input  wire       clk,      // Clock
+    input  wire       rst_n     // Reset_n - low to reset} 
 );
 
     // Internal signals
