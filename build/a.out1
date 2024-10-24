@@ -1,18 +1,103 @@
-**** module/scope: triangular_wave_generator
+**** module/scope: tt_um_waves
+     Flip-Flops   : 33
+     Logic Gates  : 454
+     ADDER[32]: 1 units
+     MAGNITUDE[32]: 3 units
+     MUX[2]: 97 slices
+     LPM[4]: 1 unaccounted
+     LPM[5]: 2 unaccounted
+     LOG[13]: 1 unaccounted
+     LOG[14]: 1 unaccounted
+**** module/scope: tt_um_waves.adsr_gen
+     Flip-Flops   : 20
+     Logic Gates  : 263
+     ADDER[8]: 3 units
+     EQUALITY[8]: 2 units
+     MAGNITUDE[8]: 2 units
+     MAGNITUDE[32]: 1 units
+     MUX[2]: 36 slices
+     LPM[5]: 6 unaccounted
+     LPM[8]: 2 unaccounted
+     LOG[13]: 3 unaccounted
+     LOG[14]: 1 unaccounted
+**** module/scope: tt_um_waves.attack_encoder
+     Flip-Flops   : 12
+     Logic Gates  : 153
+     ADDER[32]: 2 units
+     MUX[2]: 12 slices
+     LPM[5]: 1 unaccounted
+     LPM[8]: 2 unaccounted
+     LOG[13]: 1 unaccounted
+     LOG[14]: 1 unaccounted
+**** module/scope: tt_um_waves.decay_encoder
+     Flip-Flops   : 12
+     Logic Gates  : 153
+     ADDER[32]: 2 units
+     MUX[2]: 12 slices
+     LPM[5]: 1 unaccounted
+     LPM[8]: 2 unaccounted
+     LOG[13]: 1 unaccounted
+     LOG[14]: 1 unaccounted
+**** module/scope: tt_um_waves.release_encoder
+     Flip-Flops   : 12
+     Logic Gates  : 153
+     ADDER[32]: 2 units
+     MUX[2]: 12 slices
+     LPM[5]: 1 unaccounted
+     LPM[8]: 2 unaccounted
+     LOG[13]: 1 unaccounted
+     LOG[14]: 1 unaccounted
+**** module/scope: tt_um_waves.saw_gen
+     Flip-Flops   : 16
+     Logic Gates  : 33
+     ADDER[8]: 1 units
+     MUX[2]: 8 slices
+     LOG[13]: 1 unaccounted
+     LOG[14]: 1 unaccounted
+**** module/scope: tt_um_waves.sine_gen
+     Flip-Flops   : 16
+     Logic Gates  : 49
+     ADDER[8]: 1 units
+     MUX[2]: 16 slices
+     LPM[30]: 1 unaccounted
+     LOG[13]: 1 unaccounted
+     LOG[14]: 1 unaccounted
+**** module/scope: tt_um_waves.sqr_gen
+     Flip-Flops   : 9
+     Logic Gates  : 36
+     MUX[2]: 17 slices
+     LOG[13]: 1 unaccounted
+     LOG[14]: 1 unaccounted
+**** module/scope: tt_um_waves.sustain_encoder
+     Flip-Flops   : 12
+     Logic Gates  : 153
+     ADDER[32]: 2 units
+     MUX[2]: 12 slices
+     LPM[5]: 1 unaccounted
+     LPM[8]: 2 unaccounted
+     LOG[13]: 1 unaccounted
+     LOG[14]: 1 unaccounted
+**** module/scope: tt_um_waves.triangle_gen
      Flip-Flops   : 17
-     Logic Gates  : 72
+     Logic Gates  : 93
      ADDER[8]: 1 units
      MAGNITUDE[8]: 2 units
-     MUX[2]: 11 slices
+     MUX[2]: 20 slices
      LPM[8]: 1 unaccounted
      LOG[13]: 1 unaccounted
      LOG[14]: 1 unaccounted
 **** TOTALS
-     Flip-Flops   : 17
-     Logic Gates  : 72
-     ADDER[8]: 1 units
-     MAGNITUDE[8]: 2 units
-     MUX[2]: 11 slices
-     LPM[8]: 1 unaccounted
-     LOG[13]: 1 unaccounted
-     LOG[14]: 1 unaccounted
+     Flip-Flops   : 159
+     Logic Gates  : 1540
+     ADDER[8]: 6 units
+     ADDER[32]: 9 units
+     EQUALITY[8]: 2 units
+     MAGNITUDE[8]: 4 units
+     MAGNITUDE[32]: 4 units
+     MUX[2]: 242 slices
+     LPM[4]: 1 unaccounted
+     LPM[5]: 12 unaccounted
+     LPM[8]: 11 unaccounted
+     LPM[30]: 1 unaccounted
+     LOG[13]: 12 unaccounted
+     LOG[14]: 10 unaccounted
