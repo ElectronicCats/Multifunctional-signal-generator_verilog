@@ -10,7 +10,7 @@
      LOG[14]: 1 unaccounted
 **** module/scope: tt_um_waves.adsr_gen
      Flip-Flops   : 20
-     Logic Gates  : 263
+     Logic Gates  : 266
      ADDER[8]: 3 units
      EQUALITY[8]: 2 units
      MAGNITUDE[8]: 2 units
@@ -22,7 +22,7 @@
      LOG[14]: 1 unaccounted
 **** module/scope: tt_um_waves.attack_encoder
      Flip-Flops   : 10
-     Logic Gates  : 149
+     Logic Gates  : 152
      ADDER[32]: 2 units
      MUX[2]: 10 slices
      LPM[5]: 1 unaccounted
@@ -31,7 +31,7 @@
      LOG[14]: 1 unaccounted
 **** module/scope: tt_um_waves.decay_encoder
      Flip-Flops   : 10
-     Logic Gates  : 149
+     Logic Gates  : 152
      ADDER[32]: 2 units
      MUX[2]: 10 slices
      LPM[5]: 1 unaccounted
@@ -40,7 +40,7 @@
      LOG[14]: 1 unaccounted
 **** module/scope: tt_um_waves.release_encoder
      Flip-Flops   : 10
-     Logic Gates  : 149
+     Logic Gates  : 152
      ADDER[32]: 2 units
      MUX[2]: 10 slices
      LPM[5]: 1 unaccounted
@@ -49,14 +49,14 @@
      LOG[14]: 1 unaccounted
 **** module/scope: tt_um_waves.saw_gen
      Flip-Flops   : 16
-     Logic Gates  : 33
+     Logic Gates  : 34
      ADDER[8]: 1 units
      MUX[2]: 8 slices
      LOG[13]: 1 unaccounted
      LOG[14]: 1 unaccounted
 **** module/scope: tt_um_waves.sine_gen
      Flip-Flops   : 16
-     Logic Gates  : 49
+     Logic Gates  : 51
      ADDER[8]: 1 units
      MUX[2]: 16 slices
      LPM[30]: 1 unaccounted
@@ -64,13 +64,13 @@
      LOG[14]: 1 unaccounted
 **** module/scope: tt_um_waves.sqr_gen
      Flip-Flops   : 9
-     Logic Gates  : 36
+     Logic Gates  : 38
      MUX[2]: 17 slices
      LOG[13]: 1 unaccounted
      LOG[14]: 1 unaccounted
 **** module/scope: tt_um_waves.sustain_encoder
      Flip-Flops   : 10
-     Logic Gates  : 149
+     Logic Gates  : 152
      ADDER[32]: 2 units
      MUX[2]: 10 slices
      LPM[5]: 1 unaccounted
@@ -79,7 +79,7 @@
      LOG[14]: 1 unaccounted
 **** module/scope: tt_um_waves.triangle_gen
      Flip-Flops   : 17
-     Logic Gates  : 93
+     Logic Gates  : 95
      ADDER[8]: 1 units
      MAGNITUDE[8]: 2 units
      MUX[2]: 20 slices
@@ -88,7 +88,7 @@
      LOG[14]: 1 unaccounted
 **** TOTALS
      Flip-Flops   : 151
-     Logic Gates  : 1524
+     Logic Gates  : 1546
      ADDER[8]: 6 units
      ADDER[32]: 9 units
      EQUALITY[8]: 2 units

@@ -138,7 +138,8 @@ module tt_um_waves (
         .rst_n(rst_n),
         .a(encoder_a_attack),
         .b(encoder_b_attack),
-        .value(attack)
+        .value(attack),
+        .ena(ena)
     );
 
     encoder #(.WIDTH(8), .INCREMENT(1)) decay_encoder (
@@ -146,7 +147,8 @@ module tt_um_waves (
         .rst_n(rst_n),
         .a(encoder_a_decay),
         .b(encoder_b_decay),
-        .value(decay)
+        .value(decay),
+        .ena(ena)
     );
 
     encoder #(.WIDTH(8), .INCREMENT(1)) sustain_encoder (
@@ -154,7 +156,8 @@ module tt_um_waves (
         .rst_n(rst_n),
         .a(encoder_a_sustain),
         .b(encoder_b_sustain),
-        .value(sustain)
+        .value(sustain),
+        .ena(ena)
     );
 
     encoder #(.WIDTH(8), .INCREMENT(1)) release_encoder (
@@ -162,7 +165,8 @@ module tt_um_waves (
         .rst_n(rst_n),
         .a(encoder_a_release),
         .b(encoder_b_release),
-        .value(rel)
+        .value(rel),
+        .ena(ena)
     );
 
     // Instantiate wave generators and ADSR generator
@@ -468,7 +472,7 @@ module sine_wave_generator (
         if (!rst_n) begin
             counter <= 8'd0;
             wave_out <= 8'd0;
-        end else begin
+        end else if (ena) begin
             counter <= counter + 8'd1;
             wave_out <= sine_table[counter];
         end
@@ -488,7 +492,7 @@ module square_wave_generator (
         if (!rst_n) begin
             wave_state <= 1'b0;
             wave_out <= 8'd0;
-        end else begin
+        end else if (ena) begin
             wave_state <= ~wave_state;
             wave_out <= wave_state ? 8'd255 : 8'd0;
         end
@@ -509,7 +513,7 @@ module sawtooth_wave_generator (
     always @(posedge clk) begin
         if (!rst_n) begin
             counter <= 8'd0;
-        end else begin
+        end else if (ena) begin
             counter <= counter + 1;
         end
     end
@@ -545,7 +549,7 @@ module adsr_generator (
             state <= STATE_IDLE;
             amplitude <= 8'd0;
             counter <= 8'd0;
-        end else begin
+        end else if (ena) begin
             case (state)
                 STATE_IDLE: begin
                     if (counter == 8'd255) begin
@@ -608,7 +612,7 @@ module triangular_wave_generator (
         if (!rst_n) begin
             counter <= 8'd0;
             direction <= 1'b1;
-        end else begin
+        end else if (ena) begin
             if (direction) begin
                 if (counter < 8'd255) begin
                     counter <= counter + 1;
@@ -650,7 +654,7 @@ module encoder #(
             old_a <= 0;
             old_b <= 0;
             value <= 0;
-        end else begin
+        end else if (ena) begin
             old_a <= a;
             old_b <= b;
             case ({a, old_a, b, old_b})
