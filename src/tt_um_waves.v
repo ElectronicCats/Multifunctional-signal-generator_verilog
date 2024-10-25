@@ -10,10 +10,10 @@ module tt_um_waves (
     output wire [7:0] uo_out,   // Dedicated outputs
     input  wire [7:0] uio_in,   // IOs: Input path
     output wire [7:0] uio_out,  // IOs: Output path
-    output wire [7:0] uio_oe,   // IOs:  path (active high: 0=input, 1=output)
-    input  wire       ena,      // will go high when the design is enabled
+    output wire [7:0] uio_oe,   // IOs: Enable path (active high: 0=input, 1=output)
+    input  wire       ena,      // Enable signal
     input  wire       clk,      // Clock
-    input  wire       rst_n     // Reset_n - low to reset} 
+    input  wire       rst_n     // Reset_n - low to reset
 );
 
     // Internal signals
@@ -166,11 +166,11 @@ module tt_um_waves (
     );
 
     // Instantiate wave generators and ADSR generator
-    triangular_wave_generator triangle_gen (.clk(clk_divided), .rst_n(rst_n), .wave_out(tri_wave_out));
-    sawtooth_wave_generator saw_gen (.clk(clk_divided), .rst_n(rst_n), .wave_out(saw_wave_out));
-    square_wave_generator sqr_gen (.clk(clk_divided), .rst_n(rst_n), .wave_out(sqr_wave_out));
-    sine_wave_generator sine_gen (.clk(clk_divided), .rst_n(rst_n), .wave_out(sine_wave_out));
-    adsr_generator adsr_gen (.clk(clk_divided), .rst_n(rst_n), .attack(attack), .decay(decay), .sustain(sustain), .rel(rel), .amplitude(adsr_amplitude));
+    triangular_wave_generator triangle_gen (.clk(clk_divided), .rst_n(rst_n), .wave_out(tri_wave_out), .ena(ena));
+    sawtooth_wave_generator saw_gen (.clk(clk_divided), .rst_n(rst_n), .wave_out(saw_wave_out), .ena(ena));
+    square_wave_generator sqr_gen (.clk(clk_divided), .rst_n(rst_n), .wave_out(sqr_wave_out), .ena(ena));
+    sine_wave_generator sine_gen (.clk(clk_divided), .rst_n(rst_n), .wave_out(sine_wave_out), .ena(ena));
+    adsr_generator adsr_gen (.clk(clk_divided), .rst_n(rst_n), .attack(attack), .decay(decay), .sustain(sustain), .rel(rel), .amplitude(adsr_amplitude), .ena(ena));
 
     // Wave selection logic
     always @(*) begin
@@ -194,6 +194,7 @@ endmodule
 
 
 module sine_wave_generator (
+    input  wire       ena,      // Enable signal
     input wire clk,                  // Clock
     input wire rst_n,                // Active-low reset
     output reg [7:0] wave_out        // 8-bit sine wave output
@@ -475,6 +476,7 @@ module sine_wave_generator (
 endmodule
 
 module square_wave_generator (
+    input  wire       ena,      // Enable signal
     input wire clk,                  // Clock
     input wire rst_n,                // Active-low reset
     output reg [7:0] wave_out        // 8-bit square wave output
@@ -496,6 +498,7 @@ endmodule
 
 
 module sawtooth_wave_generator (
+    input  wire       ena,      // Enable signal
     input wire clk,                  // Clock
     input wire rst_n,                // Active-low reset
     output reg [7:0] wave_out        // 8-bit sawtooth wave output
@@ -518,6 +521,7 @@ endmodule
 
 
 module adsr_generator (
+    input  wire       ena,      // Enable signal
     input  wire       clk,       // Clock
     input  wire       rst_n,     // Active-low reset
     input  wire [7:0] attack,    // Attack value
@@ -591,6 +595,7 @@ endmodule
 
 
 module triangular_wave_generator (
+    input  wire       ena,      // Enable signal
     input wire clk,                  // Clock
     input wire rst_n,                // Active-low reset
     output reg [7:0] wave_out        // 8-bit triangular wave output
@@ -630,6 +635,7 @@ module encoder #(
     parameter WIDTH = 8,
     parameter INCREMENT = 1'b1
 )(
+    input ena,
     input clk,
     input rst_n,
     input a,
