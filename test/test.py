@@ -3,7 +3,7 @@
 
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import ClockCycles
+from cocotb.triggers import ClockCycles, RisingEdge
 
 
 @cocotb.test()
@@ -25,16 +25,24 @@ async def test_project(dut):
 
     dut._log.info("Test project behavior")
 
-    # Set the input values you want to test
-    dut.ui_in.value = 20
-    dut.uio_in.value = 30
+    # Set the input values you want to test for the desired wave type and frequency
+    # Example: Set a frequency selection and wave type
+    dut.ui_in.value = 0b11000000 # Set freq_select and wave_select to known values
+    await ClockCycles(dut.clk, 5)
 
-    # Wait for one clock cycle to see the output values
-    await ClockCycles(dut.clk, 1)
+    # Check if uo_out[2:0] is producing I2S signals (sck, ws, sd)
+    # This test assumes that sck (bit 0) toggles, ws (bit 1) toggles slowly, and sd (bit 2) is serial data.
+    
+    # Check sck toggling
+    prev_sck = dut.uo_out[0].value
+    await ClockCycles(dut.clk, 2)
+    assert dut.uo_out[0].value != prev_sck, "sck did not toggle as expected."
 
-    # The following assersion is just an example of how to check the output values.
-    # Change it to match the actual expected output of your module:
-    assert dut.uo_out.value == 50
+    # Check ws toggling (expect slower toggle rate than sck)
+    prev_ws = dut.uo_out[1].value
+    await ClockCycles(dut.clk, 16)
+    assert dut.uo_out[1].value != prev_ws, "ws did not toggle as expected."
 
-    # Keep testing the module by changing the input values, waiting for
-    # one or more clock cycles, and asserting the expected output values.
+    dut._log.info("Initial I2S signal toggling test passed")
+
+    # Additional tests can be added to check data patterns on `sd`, depending on the expected output pattern
