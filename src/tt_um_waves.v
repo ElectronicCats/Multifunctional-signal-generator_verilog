@@ -161,7 +161,10 @@ module tt_um_waves (
         .ena(ena)
     );
   
-    assign uo_out[7:3] = 5'b0;
+    assign uo_out[7:3] = 5'b0;  // Zero unused bits
+    assign uo_out[2] = i2s_out.sd; // Serial data
+    assign uo_out[1] = i2s_out.ws; // Word select
+    assign uo_out[0] = i2s_out.sck; // Bit clock
 
     // Unused output assignments
     assign uio_out = 8'b0;
