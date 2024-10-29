@@ -7,7 +7,7 @@
 
 module tt_um_waves (
     input  wire [7:0] ui_in,    // Dedicated inputs
-    output wire [7:0] uo_out,   // Dedicated outputs
+    output wire [7:0] uo_out,   // Dedicated outputs: uo_out[2:0] = {WS, SD, SCK} for I2S
     input  wire [7:0] uio_in,   // IOs: Input path
     output wire [7:0] uio_out,  // IOs: Output path
     output wire [7:0] uio_oe,   // IOs: Enable path (active high: 0=input, 1=output)
@@ -17,32 +17,25 @@ module tt_um_waves (
 );
 
     // Internal signals
-    wire [5:0] freq_select = ui_in[5:0];    // Frequency selection from the first 6 bits of ui_in
-    wire [1:0] wave_select = ui_in[7:6];    // Wave type selection from the last 2 bits of ui_in
+    wire [5:0] freq_select = ui_in[5:0];
+    wire [1:0] wave_select = ui_in[7:6];
 
-    // Encoder input signals
-    wire encoder_a_attack = uio_in[0]; // Encoder A for attack
-    wire encoder_b_attack = uio_in[1]; // Encoder B for attack
-    wire encoder_a_decay = uio_in[2];  // Encoder A for decay
-    wire encoder_b_decay = uio_in[3];  // Encoder B for decay
-    wire encoder_a_sustain = uio_in[4];// Encoder A for sustain
-    wire encoder_b_sustain = uio_in[5];// Encoder B for sustain
-  wire encoder_a_release = uio_in[6];// Enc oder A for release
-    wire encoder_b_release = uio_in[7];// Encoder B for release
+    wire encoder_a_attack = uio_in[0];
+    wire encoder_b_attack = uio_in[1];
+    wire encoder_a_decay = uio_in[2];
+    wire encoder_b_decay = uio_in[3];
+    wire encoder_a_sustain = uio_in[4];
+    wire encoder_b_sustain = uio_in[5];
+    wire encoder_a_release = uio_in[6];
+    wire encoder_b_release = uio_in[7];
 
-    // ADSR parameter values controlled by encoders
-    wire [7:0] attack;
-    wire [7:0] decay;
-    wire [7:0] sustain;
-    wire [7:0] rel;
-
-    // Clock divider signals
+    wire [7:0] attack, decay, sustain, rel;
     reg [31:0] clk_div, clk_div_threshold;
     reg clk_divided;
     wire [7:0] tri_wave_out, saw_wave_out, sqr_wave_out, sine_wave_out, adsr_amplitude;
     reg [7:0] selected_wave;
 
-    // Clock divider logic with synchronous reset
+    // Clock divider logic
     always @(posedge clk) begin
         if (!rst_n) begin
             clk_div <= 32'd0;
@@ -56,8 +49,8 @@ module tt_um_waves (
             end
         end
     end
-
-    // Clock divider threshold selection
+  
+  // Clock divider threshold selection
     always @(*) begin
         case (freq_select)
             6'b000000: clk_div_threshold = 32'd1915712;  // C2 (65.41 Hz)
@@ -132,51 +125,21 @@ module tt_um_waves (
         endcase
     end
 
-    // Instantiate encoder modules for ADSR parameters
-    encoder #(.WIDTH(8), .INCREMENT(1)) attack_encoder (
-        .clk(clk),
-        .rst_n(rst_n),
-        .a(encoder_a_attack),
-        .b(encoder_b_attack),
-        .value(attack),
-        .ena(ena)
-    );
 
-    encoder #(.WIDTH(8), .INCREMENT(1)) decay_encoder (
-        .clk(clk),
-        .rst_n(rst_n),
-        .a(encoder_a_decay),
-        .b(encoder_b_decay),
-        .value(decay),
-        .ena(ena)
-    );
+    // Instantiate encoders
+    encoder #(.WIDTH(8), .INCREMENT(1)) attack_encoder (.clk(clk), .rst_n(rst_n), .a(encoder_a_attack), .b(encoder_b_attack), .value(attack), .ena(ena));
+    encoder #(.WIDTH(8), .INCREMENT(1)) decay_encoder  (.clk(clk), .rst_n(rst_n), .a(encoder_a_decay),  .b(encoder_b_decay),  .value(decay),  .ena(ena));
+    encoder #(.WIDTH(8), .INCREMENT(1)) sustain_encoder(.clk(clk), .rst_n(rst_n), .a(encoder_a_sustain),.b(encoder_b_sustain),.value(sustain),.ena(ena));
+    encoder #(.WIDTH(8), .INCREMENT(1)) release_encoder(.clk(clk), .rst_n(rst_n), .a(encoder_a_release), .b(encoder_b_release), .value(rel), .ena(ena));
 
-    encoder #(.WIDTH(8), .INCREMENT(1)) sustain_encoder (
-        .clk(clk),
-        .rst_n(rst_n),
-        .a(encoder_a_sustain),
-        .b(encoder_b_sustain),
-        .value(sustain),
-        .ena(ena)
-    );
+    // Wave generators and ADSR
+    triangular_wave_generator triangle_gen(.clk(clk_divided), .rst_n(rst_n), .wave_out(tri_wave_out), .ena(ena));
+    sawtooth_wave_generator   saw_gen(.clk(clk_divided), .rst_n(rst_n), .wave_out(saw_wave_out), .ena(ena));
+    square_wave_generator     sqr_gen(.clk(clk_divided), .rst_n(rst_n), .wave_out(sqr_wave_out), .ena(ena));
+    sine_wave_generator       sine_gen(.clk(clk_divided), .rst_n(rst_n), .wave_out(sine_wave_out), .ena(ena));
+    adsr_generator            adsr_gen(.clk(clk_divided), .rst_n(rst_n), .attack(attack), .decay(decay), .sustain(sustain), .rel(rel), .amplitude(adsr_amplitude), .ena(ena));
 
-    encoder #(.WIDTH(8), .INCREMENT(1)) release_encoder (
-        .clk(clk),
-        .rst_n(rst_n),
-        .a(encoder_a_release),
-        .b(encoder_b_release),
-        .value(rel),
-        .ena(ena)
-    );
-
-    // Instantiate wave generators and ADSR generator
-    triangular_wave_generator triangle_gen (.clk(clk_divided), .rst_n(rst_n), .wave_out(tri_wave_out), .ena(ena));
-    sawtooth_wave_generator saw_gen (.clk(clk_divided), .rst_n(rst_n), .wave_out(saw_wave_out), .ena(ena));
-    square_wave_generator sqr_gen (.clk(clk_divided), .rst_n(rst_n), .wave_out(sqr_wave_out), .ena(ena));
-    sine_wave_generator sine_gen (.clk(clk_divided), .rst_n(rst_n), .wave_out(sine_wave_out), .ena(ena));
-    adsr_generator adsr_gen (.clk(clk_divided), .rst_n(rst_n), .attack(attack), .decay(decay), .sustain(sustain), .rel(rel), .amplitude(adsr_amplitude), .ena(ena));
-
-    // Wave selection logic
+    // Select the wave
     always @(*) begin
         case (wave_select)
             2'b00: selected_wave = tri_wave_out;
@@ -187,15 +150,63 @@ module tt_um_waves (
         endcase
     end
 
-    // Modulate wave with ADSR
-    assign uo_out = (adsr_amplitude > 0 && selected_wave > 0) ? (selected_wave * adsr_amplitude) >> 8 : 0;
+    // I2S output module for selected_wave modulated by ADSR
+    i2s_transmitter i2s_out (
+        .clk(clk),
+        .rst_n(rst_n),
+        .data((selected_wave * adsr_amplitude) >> 8),
+        .sck(uo_out[0]),      // Bit clock
+        .ws(uo_out[1]),       // Word select
+        .sd(uo_out[2]),       // Serial data
+        .ena(ena)
+    );
+  
+    assign uo_out[7:3] = 5'b0;
 
     // Unused output assignments
     assign uio_out = 8'b0;
-    assign uio_oe = 8'b0;
+    assign uio_oe  = 8'b0;
 
 endmodule
 
+module i2s_transmitter (
+    input wire clk,            // System clock
+    input wire rst_n,          // Reset, active low
+    input wire ena,            // Enable signal
+    input wire [7:0] data,     // 8-bit audio data
+    output reg sck,            // Bit clock
+    output reg ws,             // Word select
+    output reg sd              // Serial data output
+);
+
+    reg [3:0] bit_counter;
+    reg [15:0] audio_data;
+
+    // I2S transmission logic
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            bit_counter <= 4'd0;
+            audio_data  <= 16'd0;
+            sck         <= 0;
+            ws          <= 0;
+            sd          <= 0;
+        end else if (ena) begin
+            // Bit clock generation
+            sck <= ~sck;
+            if (sck) begin
+                bit_counter <= bit_counter + 1;
+                if (bit_counter == 15) begin
+                    bit_counter <= 0;
+                    ws <= ~ws;
+                    // Load next audio sample
+                    audio_data <= {data, data}; // Replicate 8-bit data for 16-bit transmission
+                end
+                // Transmit audio data bit by bit
+                sd <= audio_data[15 - bit_counter];
+            end
+        end
+    end
+endmodule
 
 module sine_wave_generator (
     input  wire       ena,      // Enable signal
