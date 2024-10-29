@@ -15,54 +15,62 @@ async def test_project(dut):
     dut.rst_n.value = 1
 
     # Set up sine wave with C4 frequency
-    dut.ui_in.value = 0b10000000  # Wave select bits (7:6) for sine; bits (5:0) for frequency
-    dut.uio_in.value = 0          # Clear ADSR inputs initially
+    dut.ui_in.value = 0b10000000  # Select sine wave
+    dut.uio_in.value = 0          # Initialize ADSR parameters
 
-    # Configure ADSR with enhanced settings
+    # Configure ADSR envelope
     await set_adsr(dut, attack=20, decay=10, sustain=50, release=30)
 
-    # Allow stabilization time
+    # Small delay for stabilization
     await ClockCycles(dut.clk, 50)
 
-    # Verify waveform with ADSR modulation on `sd`
+    # Verify ADSR impact on waveform
     await verify_adsr_waveform(dut, expected_wave="sine")
 
 
 async def set_adsr(dut, attack, decay, sustain, release):
-    """Set ADSR envelope parameters."""
+    """Configure the ADSR envelope parameters."""
     dut._log.info(f"Setting ADSR: Attack={attack}, Decay={decay}, Sustain={sustain}, Release={release}")
 
-    # Adjust ADSR configuration here by setting `uio_in`
-    dut.uio_in.value = attack & 0xFF
+    # Set ADSR by modifying `uio_in` bits
+    dut.uio_in.value = attack
     await ClockCycles(dut.clk, 10)
-    dut.uio_in.value = decay & 0xFF
+    dut.uio_in.value = decay
     await ClockCycles(dut.clk, 10)
-    dut.uio_in.value = sustain & 0xFF
+    dut.uio_in.value = sustain
     await ClockCycles(dut.clk, 10)
-    dut.uio_in.value = release & 0xFF
+    dut.uio_in.value = release
     await ClockCycles(dut.clk, 10)
 
-    dut._log.info("ADSR parameters set.")
+    dut._log.info("ADSR parameters applied.")
 
 
 async def verify_adsr_waveform(dut, expected_wave):
-    """Check for ADSR-modulated waveform output on `sd`."""
-    dut._log.info(f"Verifying {expected_wave} waveform with ADSR modulation on `sd`.")
+    """Verify ADSR-modulated waveform on `sd`."""
+    dut._log.info(f"Checking for ADSR-modulated {expected_wave} waveform on `sd`.")
 
-    prev_sd = dut.uo_out[2].value  # Start monitoring `sd`
-    await ClockCycles(dut.clk, 5)  # Small delay to allow ADSR to take effect
+    prev_sd = dut.uo_out[2].value
+    prev_amplitude = dut.adsr_amplitude.value  # Monitor amplitude from ADSR
 
-    for i in range(100):
+    await ClockCycles(dut.clk, 5)
+
+    for i in range(200):  # Extended cycle count for clearer observation
         await RisingEdge(dut.clk)
         current_sd = dut.uo_out[2].value
-        dut._log.info(f"Cycle {i}: `sd` = {current_sd}")
+        current_amplitude = dut.adsr_amplitude.value
 
-        # Check for change indicating modulation
-        if current_sd != prev_sd:
-            dut._log.info("ADSR modulation detected on `sd`.")
-            return  # Success if modulation detected
+        # Logging to observe ADSR and sd behavior
+        dut._log.info(f"Cycle {i}: `sd` = {current_sd}, `amplitude` = {current_amplitude}")
 
-        prev_sd = current_sd
+        # Check if amplitude modulation is applied
+        if current_amplitude != prev_amplitude:
+            dut._log.info("Detected ADSR amplitude modulation.")
+            if current_sd != prev_sd:
+                dut._log.info("Modulated waveform detected on `sd`.")
+                return  # Success: Modulation observed on `sd`
+            else:
+                prev_sd = current_sd
+        prev_amplitude = current_amplitude
 
-    # If no modulation is detected, assert failure
+    # Fail if modulation not observed
     assert False, "Expected ADSR modulation but saw no change in `sd`."
