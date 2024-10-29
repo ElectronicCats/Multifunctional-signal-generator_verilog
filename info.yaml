@@ -32,9 +32,9 @@ pinout:
   ui[7]: "ER_02"
 
   # Outputs
-  uo[0]: "Waves"
-  uo[1]: ""
-  uo[2]: ""
+  uo[0]: "sck"
+  uo[1]: "ws"
+  uo[2]: "sd"
   uo[3]: ""
   uo[4]: ""
   uo[5]: ""
@@ -42,7 +42,7 @@ pinout:
   uo[7]: ""
 
   # Bidirectional pins
-  uio[0]: "RX"
+  uio[0]: ""
   uio[1]: ""
   uio[2]: ""
   uio[3]: ""
