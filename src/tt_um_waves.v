@@ -17,10 +17,10 @@ module tt_um_waves (
 );
 
     // Internal signals
-    wire [1:0] wave_select = ui_in[7:6];
-    reg [7:0] uart_data;
+    reg [1:0] wave_select; // Change from wire to reg
+    reg [7:0] uart_data_old;
+    reg uart_new_data_flag;
     reg [5:0] freq_select; 
-    reg uart_new_data;
     wire uart_rx = ui_in[0];    // UART RX input pin
 
     wire encoder_a_attack = uio_in[0];
@@ -55,7 +55,14 @@ module tt_um_waves (
   
     // Interpret UART commands to set wave type or frequency
     always @(posedge clk) begin
-        if (uart_new_data) begin
+    if (!rst_n) begin
+        uart_data_old <= 8'h00;
+        uart_new_data_flag <= 1'b0;
+    end else begin
+        uart_data_old <= uart_data;
+        uart_new_data_flag <= uart_new_data;
+
+        if (uart_new_data_flag && uart_data_old != uart_data) begin
             case (uart_data)
                 // Frequency Controls ('0' - '9', 'A' - 'F' for different frequencies)
                 8'h30: freq_select <= 6'b000000;  // C2 (65.41 Hz)
@@ -128,6 +135,7 @@ module tt_um_waves (
                 default: ;
             endcase
         end
+    end
     end
 
 
