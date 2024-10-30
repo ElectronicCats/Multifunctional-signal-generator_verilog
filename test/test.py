@@ -50,14 +50,14 @@ async def verify_adsr_waveform(dut, expected_wave):
     dut._log.info(f"Checking for ADSR-modulated {expected_wave} waveform on `sd`.")
 
     prev_sd = dut.uo_out[2].value
-    prev_amplitude = dut.adsr_amplitude.value  # Monitor amplitude from ADSR
+    prev_amplitude = dut.adsr_amplitude_out.value  # Monitor `adsr_amplitude_out` in the top module
 
     await ClockCycles(dut.clk, 5)
 
     for i in range(200):  # Extended cycle count for clearer observation
         await RisingEdge(dut.clk)
         current_sd = dut.uo_out[2].value
-        current_amplitude = dut.adsr_amplitude.value
+        current_amplitude = dut.adsr_amplitude_out.value  # Reference `adsr_amplitude_out`
 
         # Logging to observe ADSR and sd behavior
         dut._log.info(f"Cycle {i}: `sd` = {current_sd}, `amplitude` = {current_amplitude}")

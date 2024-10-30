@@ -11,6 +11,7 @@ module tt_um_waves (
     input  wire [7:0] uio_in,   // IOs: Input path
     output wire [7:0] uio_out,  // IOs: Output path
     output wire [7:0] uio_oe,   // IOs: Enable path (active high: 0=input, 1=output)
+    output wire [7:0] adsr_amplitude_out  //adsr amplitude
     input  wire       ena,      // Enable signal
     input  wire       clk,      // Clock
     input  wire       rst_n     // Reset_n - low to reset
@@ -139,6 +140,8 @@ module tt_um_waves (
     sine_wave_generator       sine_gen(.clk(clk_divided), .rst_n(rst_n), .wave_out(sine_wave_out), .ena(ena));
     adsr_generator            adsr_gen(.clk(clk_divided), .rst_n(rst_n), .attack(attack), .decay(decay), .sustain(sustain), .rel(rel), .amplitude(adsr_amplitude), .ena(ena));
 
+    assign adsr_amplitude_out = adsr_amplitude;
+
     // Select the wave
     always @(*) begin
         case (wave_select)
@@ -176,7 +179,8 @@ module i2s_transmitter (
     input wire [7:0] data,     // 8-bit audio data
     output reg sck,            // Bit clock
     output reg ws,             // Word select
-    output reg sd              // Serial data output
+    output reg sd,              // Serial data output
+    output wire [7:0] adsr_amplitude_out  // Add this line in the module I/O list
 );
 
     reg [3:0] bit_counter;
