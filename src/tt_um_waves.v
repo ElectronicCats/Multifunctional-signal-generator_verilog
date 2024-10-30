@@ -18,8 +18,8 @@ module tt_um_waves (
 
     // Internal signals
     wire [1:0] wave_select = ui_in[7:6];
-    wire [7:0] adsr_amplitude;  //adsr amplitude
     reg [7:0] uart_data;
+    reg [5:0] freq_select; 
     reg uart_new_data;
     wire uart_rx = ui_in[0];    // UART RX input pin
 
@@ -260,7 +260,7 @@ module i2s_transmitter (
     output reg sck,            // Bit clock
     output reg ws,             // Word select
     output reg sd,              // Serial data output
-    output wire [7:0] adsr_amplitude_out  // Add this line in the module I/O list
+    //output wire [7:0] adsr_amplitude // Add this line in the module I/O list
 );
 
     reg [3:0] bit_counter;
