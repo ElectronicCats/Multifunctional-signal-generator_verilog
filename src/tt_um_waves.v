@@ -19,6 +19,9 @@ module tt_um_waves (
     // Internal signals
     wire [1:0] wave_select = ui_in[7:6];
     wire [7:0] adsr_amplitude;  //adsr amplitude
+    reg [7:0] uart_data;
+    reg uart_new_data;
+    wire uart_rx = ui_in[0];    // UART RX input pin
 
     wire encoder_a_attack = uio_in[0];
     wire encoder_b_attack = uio_in[1];
@@ -50,6 +53,84 @@ module tt_um_waves (
         end
     end
   
+    // Interpret UART commands to set wave type or frequency
+    always @(posedge clk) begin
+        if (uart_new_data) begin
+            case (uart_data)
+                // Frequency Controls ('0' - '9', 'A' - 'F' for different frequencies)
+                8'h30: freq_select <= 6'b000000;  // C2 (65.41 Hz)
+                8'h31: freq_select <= 6'b000001;  // C#2 (69.30 Hz)
+                8'h32: freq_select <= 6'b000010;  // D2 (73.42 Hz)
+                8'h33: freq_select <= 6'b000011;  // D#2/Eb2
+                8'h34: freq_select <= 6'b000100;  // E2
+                8'h35: freq_select <= 6'b000101;  // F2
+                8'h36: freq_select <= 6'b000110;  // F#2/Gb2
+                8'h37: freq_select <= 6'b000111;  // G2
+                8'h38: freq_select <= 6'b001000;  // G#2/Ab2
+                8'h39: freq_select <= 6'b001001;  // A2
+                8'h41: freq_select <= 6'b001010;  // A#2
+                8'h42: freq_select <= 6'b001011;  // B2
+                8'h43: freq_select <= 6'b001100;  // C3
+                8'h44: freq_select <= 6'b001101;  // C#3/Db3
+                8'h45: freq_select <= 6'b001110;  // D3
+                8'h46: freq_select <= 6'b001111;  // D#3
+                8'h47: freq_select <= 6'b010000;  // E3
+                8'h48: freq_select <= 6'b010001;  // F3
+                8'h49: freq_select <= 6'b010010;  // F#3/Gb3
+                8'h4A: freq_select <= 6'b010011;  // G3
+                8'h4B: freq_select <= 6'b010100;  // G#3/Ab3
+                8'h4C: freq_select <= 6'b010101;  // A3
+                8'h4D: freq_select <= 6'b010110;  // A#3
+                8'h4E: freq_select <= 6'b010111;  // B3
+                8'h4F: freq_select <= 6'b011000;  // C4
+                8'h50: freq_select <= 6'b011001;  // C#4/Db4
+                8'h51: freq_select <= 6'b011010;  // D4
+                8'h52: freq_select <= 6'b011011;  // D#4/Eb4
+                8'h53: freq_select <= 6'b011100;  // E4
+                8'h54: freq_select <= 6'b011101;  // F4
+                8'h55: freq_select <= 6'b011110;  // F#4/Gb4
+                8'h56: freq_select <= 6'b011111;  // G4
+                8'h57: freq_select <= 6'b100000;  // G#4/Ab4
+                8'h58: freq_select <= 6'b100001;  // A4
+                8'h59: freq_select <= 6'b100010;  // A#4
+                8'h5A: freq_select <= 6'b100011;  // B4
+                8'h61: freq_select <= 6'b100100;  // C5
+                8'h62: freq_select <= 6'b100101;  // C#5/Db5
+                8'h63: freq_select <= 6'b100110;  // D5
+                8'h64: freq_select <= 6'b100111;  // D#5
+                8'h65: freq_select <= 6'b101000;  // E5
+                8'h66: freq_select <= 6'b101001;  // F5
+                8'h67: freq_select <= 6'b101010;  // F#5/Gb5
+                8'h68: freq_select <= 6'b101011;  // G5
+                8'h69: freq_select <= 6'b101100;  // G#5
+                8'h6A: freq_select <= 6'b101101;  // A5
+                8'h6B: freq_select <= 6'b101110;  // A#5
+                8'h6C: freq_select <= 6'b101111;  // B5
+                8'h6D: freq_select <= 6'b110000;  // C6
+                8'h6E: freq_select <= 6'b110001;  // C#6/Db6
+                8'h6F: freq_select <= 6'b110010;  // D6
+                8'h70: freq_select <= 6'b110011;  // D#6
+                8'h71: freq_select <= 6'b110100;  // E6
+                8'h72: freq_select <= 6'b110101;  // F6
+                8'h73: freq_select <= 6'b110110;  // F#6/Gb6
+                8'h74: freq_select <= 6'b110111;  // G6
+                8'h75: freq_select <= 6'b111000;  // G#6
+                8'h76: freq_select <= 6'b111001;  // A6
+                8'h77: freq_select <= 6'b111010;  // A#6
+                8'h78: freq_select <= 6'b111011;  // B6
+
+
+                // Waveform Controls
+                8'h54: wave_select <= 2'b00;      // 'T' for Triangle wave
+                8'h53: wave_select <= 2'b01;      // 'S' for Sawtooth wave
+                8'h51: wave_select <= 2'b10;      // 'Q' for Square wave
+                8'h4E: wave_select <= 2'b11;      // 'N' for Sine wave
+                default: ;
+            endcase
+        end
+    end
+
+
   // Clock divider threshold selection
     always @(*) begin
         case (freq_select)
