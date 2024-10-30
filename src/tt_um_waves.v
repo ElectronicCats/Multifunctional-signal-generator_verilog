@@ -11,15 +11,14 @@ module tt_um_waves (
     input  wire [7:0] uio_in,   // IOs: Input path
     output wire [7:0] uio_out,  // IOs: Output path
     output wire [7:0] uio_oe,   // IOs: Enable path (active high: 0=input, 1=output)
-    output wire [7:0] adsr_amplitude_out,  //adsr amplitude
     input  wire       ena,      // Enable signal
     input  wire       clk,      // Clock
     input  wire       rst_n     // Reset_n - low to reset
 );
 
     // Internal signals
-    wire [5:0] freq_select = ui_in[5:0];
     wire [1:0] wave_select = ui_in[7:6];
+    wire [7:0] adsr_amplitude;  //adsr amplitude
 
     wire encoder_a_attack = uio_in[0];
     wire encoder_b_attack = uio_in[1];
@@ -140,7 +139,7 @@ module tt_um_waves (
     sine_wave_generator       sine_gen(.clk(clk_divided), .rst_n(rst_n), .wave_out(sine_wave_out), .ena(ena));
     adsr_generator            adsr_gen(.clk(clk_divided), .rst_n(rst_n), .attack(attack), .decay(decay), .sustain(sustain), .rel(rel), .amplitude(adsr_amplitude), .ena(ena));
 
-    assign adsr_amplitude_out = adsr_amplitude;
+
 
     // Select the wave
     always @(*) begin
