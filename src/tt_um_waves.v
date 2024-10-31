@@ -192,7 +192,7 @@ module tt_um_waves (
 
 endmodule
 
-module uart_module (
+module uart_receiver (
     input wire clk,
     input wire rst,
     input wire rx, // UART receive line
