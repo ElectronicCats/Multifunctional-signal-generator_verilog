@@ -205,7 +205,7 @@ module uart_receiver (
     reg [2:0] bit_count;       // Counts bits in the received byte (3 bits cover range 0-7)
     reg receiving;             // Flag for UART reception in progress
 
-    always @(posedge clk or negedge rst_n) begin
+    always @(posedge clk) begin
         if (!rst_n) begin
             received_byte <= 8'd0;
             bit_count <= 3'd0;
