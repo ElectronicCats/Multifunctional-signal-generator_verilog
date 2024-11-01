@@ -202,7 +202,7 @@ module uart_receiver (
 );
 
     reg [7:0] received_byte;   // Stores the full received byte
-    reg [2:0] bit_count;       // Counts bits in the received byte
+    reg [2:0] bit_count;       // Counts bits in the received byte (3 bits cover range 0-7)
     reg receiving;             // Flag for UART reception in progress
 
     always @(posedge clk or negedge rst_n) begin
@@ -220,21 +220,23 @@ module uart_receiver (
             end else if (receiving) begin
                 received_byte[bit_count] <= rx;
                 bit_count <= bit_count + 1;
-                if (bit_count == 7) begin
-                    receiving <= 0;
+                if (bit_count == 3'd7) begin
+                    receiving <= 0;  // Stop receiving after the 8th bit
+
+                    // Decode the received byte
                     case (received_byte)
                         // Wave selection characters
-                        "T": wave_select <= 2'b00;  // Triangle wave
-                        "S": wave_select <= 2'b01;  // Sawtooth wave
-                        "Q": wave_select <= 2'b10;  // Square wave
-                        "N": wave_select <= 2'b11;  // Sine wave
+                        8'h54: wave_select <= 2'b00;  // "T" - Triangle wave
+                        8'h53: wave_select <= 2'b01;  // "S" - Sawtooth wave
+                        8'h51: wave_select <= 2'b10;  // "Q" - Square wave
+                        8'h4E: wave_select <= 2'b11;  // "N" - Sine wave
                         
                         // Frequency selection, converting hex characters '0'-'F'
                         default: begin
-                            if (received_byte >= "0" && received_byte <= "9")
-                                freq_select <= (received_byte - "0")[5:0];  // Restrict to 6 bits
-                            else if (received_byte >= "A" && received_byte <= "F")
-                                freq_select <= ((received_byte - "A" + 6'd10) & 6'h3F);  // Restrict to 6 bits
+                            if (received_byte >= 8'h30 && received_byte <= 8'h39)
+                                freq_select <= (received_byte - 8'h30) & 6'h3F;  // "0"-"9" to 6 bits
+                            else if (received_byte >= 8'h41 && received_byte <= 8'h46)
+                                freq_select <= ((received_byte - 8'h41 + 6'd10) & 6'h3F);  // "A"-"F" to 6 bits
                         end
                     endcase
                 end
@@ -242,6 +244,7 @@ module uart_receiver (
         end
     end
 endmodule
+
 
 module i2s_transmitter (
     input wire clk,            // System clock
