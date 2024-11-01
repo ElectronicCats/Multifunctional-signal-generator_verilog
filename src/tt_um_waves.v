@@ -20,6 +20,7 @@ module tt_um_waves (
     wire uart_rx = ui_in[0];     // UART RX from ui_in[0]
     wire [5:0] freq_select;      // Frequency selection from UART command
     wire [1:0] wave_select;      // Wave type selection from UART command
+    wire unused_ui_in = |ui_in[7:1];
 
     // I2S signals
     wire sck, ws, sd;
@@ -233,9 +234,9 @@ module uart_receiver (
                         // Frequency selection, converting hex characters '0'-'F'
                         default: begin
                             if (received_byte >= 8'h30 && received_byte <= 8'h39)
-                                freq_select <= (received_byte - 8'h30) & 6'h3F;  // "0"-"9" to 6 bits
+                                freq_select <= (received_byte - 8'h30) & 6'b00111111; // "0"-"9" to 6 bits
                             else if (received_byte >= 8'h41 && received_byte <= 8'h46)
-                                freq_select <= ((received_byte - 8'h41 + 6'd10) & 6'h3F);  // "A"-"F" to 6 bits
+                                freq_select <= ((received_byte - 8'h41 + 6'd10) & 6'b00111111);;  // "A"-"F" to 6 bits
                         end
                     endcase
                 end
