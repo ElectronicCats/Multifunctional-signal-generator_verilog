@@ -198,8 +198,8 @@ module uart_receiver (
     input wire clk,
     input wire rst_n,
     input wire rx,                 // UART receive line
-    output reg [5:0] freq_select,   // Frequency selection (6 bits)
-    output reg [1:0] wave_select    // Wave type selection (2 bits)
+    output reg [5:0] freq_select,  // Frequency selection (6 bits)
+    output reg [1:0] wave_select   // Wave type selection (2 bits)
 );
 
     reg [7:0] received_byte;   // Stores the full received byte
@@ -207,22 +207,22 @@ module uart_receiver (
     reg receiving;             // Flag for UART reception in progress
 
     always @(posedge clk) begin
-    if (!rst_n) begin
-        received_byte <= 8'd0;
-        bit_count <= 3'd0;
-        receiving <= 1'b0;
-        freq_select <= 6'd0;
-        wave_select <= 2'd0;
-    end else begin
-        if (rx == 0 && !receiving) begin
-            // Start receiving new byte
-            receiving <= 1'b1;
-            bit_count <= 0;
-        end else if (receiving) begin
-            received_byte[bit_count] <= rx;
-            bit_count <= bit_count + 1;
-            if (bit_count == 3'd7) begin
-                receiving <= 0;  // Stop receiving after the 8th bit
+        if (!rst_n) begin
+            received_byte <= 8'd0;
+            bit_count <= 3'd0;
+            receiving <= 1'b0;
+            freq_select <= 6'd0;
+            wave_select <= 2'd0;
+        end else begin
+            if (rx == 0 && !receiving) begin
+                // Start receiving new byte
+                receiving <= 1'b1;
+                bit_count <= 0;
+            end else if (receiving) begin
+                received_byte[bit_count] <= rx;
+                bit_count <= bit_count + 1;
+                if (bit_count == 3'd7) begin
+                    receiving <= 0;  // Stop receiving after the 8th bit
 
                     case (received_byte)
                         // Wave selection characters
@@ -232,23 +232,20 @@ module uart_receiver (
                         8'h4E: wave_select <= 2'b11;  // "N" - Sine wave
                         default: wave_select <= 2'b00;
                     endcase
-                        // Decode frequency selection
-                        if (received_byte >= 8'h30 && received_byte <= 8'h39) 
-                        begin
-                            freq_select <= ({6{received_byte[7]}} & (received_byte - 8'h30)) & 6'b001111;
-                        end else if (received_byte >= 8'h41 && received_byte <= 8'h46) 
-                        begin
-                            freq_select <= ({6{received_byte[7]}} & (received_byte - 8'h41 + 6'd10)) & 6'b001111;
-                        end else 
-                        begin
-                            freq_select <= 6'd0;  // Default or error case
-                        end
+
+                    // Decode frequency selection for "0"-"9" and "A"-"F"
+                    if (received_byte >= 8'h30 && received_byte <= 8'h39) begin
+                        freq_select <= (received_byte - 8'h30) & 6'h3F;  // Handles "0"-"9" to 6 bits
+                    end else if (received_byte >= 8'h41 && received_byte <= 8'h46) begin
+                        freq_select <= ((received_byte - 8'h41 + 6'd10) & 6'h3F);  // Handles "A"-"F" to 6 bits
+                    end else begin
+                        freq_select <= 6'd0;  // Default or error case
+                    end
                 end
             end
         end
     end
 endmodule
-
 
 module i2s_transmitter (
     input wire clk,            // System clock
