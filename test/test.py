@@ -2,7 +2,7 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, ClockCycles
 
-# UART transmission function to simulate sending a byte to the DUT's UART RX pin
+# UART transmission function to send a byte to the DUT's UART RX pin
 async def send_uart_byte(dut, byte_value):
     dut.ui_in[0].value = 0  # Start bit
     await ClockCycles(dut.clk, 2604)  # 9600 baud with 25 MHz clock
@@ -39,13 +39,11 @@ async def test_adsr_i2s_waveform(dut):
 
     # Counters for frequency and ADSR monitoring
     sck_toggle_count = 0
-    adsr_amplitude_signal = dut.adsr_amplitude.value  # Direct ADSR amplitude signal
-    last_adsr_amplitude = adsr_amplitude_signal.value  # Initial ADSR amplitude
 
     for i in range(3000):  # Run for sufficient cycles to verify stability
         await RisingEdge(dut.clk)
         sck_current, ws_current, sd_current = dut.uo_out[0].value, dut.uo_out[1].value, dut.uo_out[2].value
-        adsr_amplitude = adsr_amplitude_signal.value
+        adsr_amplitude = int(dut.uo_out[7:3].value)
 
         # Frequency check on sck toggles
         if sck_current != sck_prev:
@@ -60,9 +58,7 @@ async def test_adsr_i2s_waveform(dut):
 
         # Log ADSR effect periodically on SD and check amplitude changes
         if i % 50 == 0:
-            if adsr_amplitude != last_adsr_amplitude:
-                dut._log.info(f"Cycle {i}: ADSR Amplitude: {adsr_amplitude}, SD data: {sd_current}")
-            last_adsr_amplitude = adsr_amplitude  # Update last amplitude
+            dut._log.info(f"Cycle {i}: ADSR Amplitude: {adsr_amplitude}, SD data: {sd_current}")
 
         # Update previous values for next cycle
         sck_prev, ws_prev, sd_prev = sck_current, ws_current, sd_current

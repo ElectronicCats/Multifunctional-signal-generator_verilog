@@ -184,7 +184,7 @@ module tt_um_waves (
     assign uo_out[0] = sck;
     assign uo_out[1] = ws;
     assign uo_out[2] = sd;
-    assign uo_out[7:3] = 5'b0;
+    assign uo_out[7:3] = adsr_amplitude[4:0];
 
     // Unused output assignments
     assign uio_out = 8'b0;
