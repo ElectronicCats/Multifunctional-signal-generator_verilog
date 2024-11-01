@@ -207,24 +207,23 @@ module uart_receiver (
     reg receiving;             // Flag for UART reception in progress
 
     always @(posedge clk) begin
-        if (!rst_n) begin
-            received_byte <= 8'd0;
-            bit_count <= 3'd0;
-            receiving <= 1'b0;
-            freq_select <= 6'd0;
-            wave_select <= 2'd0;
-        end else begin
-            if (rx == 0 && !receiving) begin
-                // Start receiving new byte
-                receiving <= 1'b1;
-                bit_count <= 0;
-            end else if (receiving) begin
-                received_byte[bit_count] <= rx;
-                bit_count <= bit_count + 1;
-                if (bit_count == 3'd7) begin
-                    receiving <= 0;  // Stop receiving after the 8th bit
+    if (!rst_n) begin
+        received_byte <= 8'd0;
+        bit_count <= 3'd0;
+        receiving <= 1'b0;
+        freq_select <= 6'd0;
+        wave_select <= 2'd0;
+    end else begin
+        if (rx == 0 && !receiving) begin
+            // Start receiving new byte
+            receiving <= 1'b1;
+            bit_count <= 0;
+        end else if (receiving) begin
+            received_byte[bit_count] <= rx;
+            bit_count <= bit_count + 1;
+            if (bit_count == 3'd7) begin
+                receiving <= 0;  // Stop receiving after the 8th bit
 
-                    // Decode the received byte
                     case (received_byte)
                         // Wave selection characters
                         8'h54: wave_select <= 2'b00;  // "T" - Triangle wave
@@ -232,12 +231,13 @@ module uart_receiver (
                         8'h51: wave_select <= 2'b10;  // "Q" - Square wave
                         8'h4E: wave_select <= 2'b11;  // "N" - Sine wave
                         
-                        // Frequency selection, converting hex characters '0'-'F'
-                        default: begin
-                            if (received_byte >= 8'h30 && received_byte <= 8'h39)
-                                freq_select <= (received_byte - 8'h30) & 6'b00111111;  // "0"-"9" to 6 bits
-                            else if (received_byte >= 8'h41 && received_byte <= 8'h46)
-                                freq_select <= ((received_byte - 8'h41 + 6'd10) & 6'b00111111);  // "A"-"F" to 6 bits
+                        // Decode frequency selection
+                        if (received_byte >= 8'h30 && received_byte <= 8'h39) begin
+                            freq_select <= {(received_byte - 8'h30) & 6'b00111111}[5:0];  // Assuming '0'-'9'
+                        end else if (received_byte >= 8'h41 && received_byte <= 8'h46) begin
+                            freq_select <= {((received_byte - 8'h41 + 6'd10) & 6'b00111111)[5:0]};  // Assuming 'A'-'F'
+                        end else begin
+                            freq_select <= 6'd0;  // Default or error case
                         end
                     endcase
                 end
