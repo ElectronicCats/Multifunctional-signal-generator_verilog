@@ -230,16 +230,19 @@ module uart_receiver (
                         8'h53: wave_select <= 2'b01;  // "S" - Sawtooth wave
                         8'h51: wave_select <= 2'b10;  // "Q" - Square wave
                         8'h4E: wave_select <= 2'b11;  // "N" - Sine wave
-                        
+                        default: wave_select <= 2'b00;
+                    endcase
                         // Decode frequency selection
-                        if (received_byte >= 8'h30 && received_byte <= 8'h39) begin
-                            freq_select <= (received_byte - 8'h30) & 6'b00111111;  // Assuming '0'-'9'
-                        end else if (received_byte >= 8'h41 && received_byte <= 8'h46) begin
-                            freq_select <= ((received_byte - 8'h41 + 6'd10) & 6'b00111111);  // Assuming 'A'-'F'
-                        end else begin
+                        if (received_byte >= 8'h30 && received_byte <= 8'h39) 
+                        begin
+                            freq_select <= ({6{received_byte[7]}} & (received_byte - 8'h30)) & 6'b001111;
+                        end else if (received_byte >= 8'h41 && received_byte <= 8'h46) 
+                        begin
+                            freq_select <= ({6{received_byte[7]}} & (received_byte - 8'h41 + 6'd10)) & 6'b001111;
+                        end else 
+                        begin
                             freq_select <= 6'd0;  // Default or error case
                         end
-                    endcase
                 end
             end
         end
@@ -578,7 +581,8 @@ module square_wave_generator (
 
     reg wave_state;                  // State of the square wave
 
-    always @(posedge clk) begin
+    always @(posedge clk) 
+    begin
         if (!rst_n) begin
             wave_state <= 1'b0;
             wave_out <= 8'd0;
@@ -588,8 +592,6 @@ module square_wave_generator (
         end
     end
 endmodule
-
-
 
 module sawtooth_wave_generator (
     input  wire       ena,      // Enable signal
