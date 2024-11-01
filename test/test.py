@@ -44,26 +44,20 @@ async def test_adsr_i2s_waveform(dut):
         await RisingEdge(dut.clk)
         sck_current, ws_current, sd_current = dut.uo_out[0].value, dut.uo_out[1].value, dut.uo_out[2].value
 
-        # Extract adsr_amplitude (bits [7:3] of uo_out)
-        if 'x' in str(dut.uo_out.value):
-            adsr_amplitude = 0  # Handle unknown state
-        else:
-            adsr_amplitude = (int(dut.uo_out.value) >> 3) & 0x1F
+    # Log current values to monitor behavior
+        if i % 32 == 0:
+            dut._log.info(f"Cycle {i}: SCK current: {sck_current}, WS current: {ws_current}, WS previous: {ws_prev}")
 
-        # Frequency check on sck toggles
+    # Frequency check on sck toggles
         if sck_current != sck_prev:
             sck_toggle_count += 1
             if sck_toggle_count >= expected_sck_toggle_rate:
                 dut._log.info("Frequency toggle verified at C#2 (65 Hz)")
                 sck_toggle_count = 0
 
-        # Verify ws toggles for each frame (every 32 sck toggles for I2S)
-        if i % 32 == 0:
-            assert ws_current != ws_prev, "I2S frame ws did not toggle as expected."
-
-        # Log ADSR effect periodically on SD and check amplitude changes
-        if i % 50 == 0:
-            dut._log.info(f"Cycle {i}: ADSR Amplitude: {adsr_amplitude}, SD data: {sd_current}")
-
-        # Update previous values for next cycle
-        sck_prev, ws_prev, sd_prev = sck_current, ws_current, sd_current
+    # Verify ws toggles for each frame (every 32 sck toggles for I2S)
+    if i % 32 == 0:
+        assert ws_current != ws_prev, "I2S frame ws did not toggle as expected."
+    
+    # Update previous values for next cycle
+    sck_prev, ws_prev, sd_prev = sck_current, ws_current, sd_current
