@@ -197,16 +197,16 @@ endmodule
 module uart_receiver (
     input wire clk,
     input wire rst_n,
-    input wire rx,
-    output reg [5:0] freq_select,  // Frequency selection (6 bits)
-    output reg [1:0] wave_select   // Wave type selection (2 bits)
+    input wire rx,                 // UART receive line
+    output reg [5:0] freq_select,   // Frequency selection (6 bits)
+    output reg [1:0] wave_select    // Wave type selection (2 bits)
 );
 
     reg [7:0] received_byte;   // Stores the full received byte
     reg [2:0] bit_count;       // Counts bits in the received byte (3 bits cover range 0-7)
     reg receiving;             // Flag for UART reception in progress
 
-    always @(posedge clk) begin
+    always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             received_byte <= 8'd0;
             bit_count <= 3'd0;
@@ -215,13 +215,14 @@ module uart_receiver (
             wave_select <= 2'd0;
         end else begin
             if (rx == 0 && !receiving) begin
+                // Start receiving new byte
                 receiving <= 1'b1;
                 bit_count <= 0;
             end else if (receiving) begin
                 received_byte[bit_count] <= rx;
                 bit_count <= bit_count + 1;
                 if (bit_count == 3'd7) begin
-                    receiving <= 0;
+                    receiving <= 0;  // Stop receiving after the 8th bit
 
                     // Decode the received byte
                     case (received_byte)
@@ -234,9 +235,9 @@ module uart_receiver (
                         // Frequency selection, converting hex characters '0'-'F'
                         default: begin
                             if (received_byte >= 8'h30 && received_byte <= 8'h39)
-                                freq_select <= (received_byte - 8'h30) & 6'b00111111; // "0"-"9" to 6 bits
+                                freq_select <= (received_byte - 8'h30) & 6'b00111111;  // "0"-"9" to 6 bits
                             else if (received_byte >= 8'h41 && received_byte <= 8'h46)
-                                freq_select <= ((received_byte - 8'h41 + 6'd10) & 6'b00111111);;  // "A"-"F" to 6 bits
+                                freq_select <= ((received_byte - 8'h41 + 6'd10) & 6'b00111111);  // "A"-"F" to 6 bits
                         end
                     endcase
                 end
