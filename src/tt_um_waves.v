@@ -202,13 +202,13 @@ module uart_receiver (
 );
 
     reg [7:0] received_byte;   // Stores the full received byte
-    reg [3:0] bit_count;       // Counts bits in the received byte
+    reg [2:0] bit_count;       // Counts bits in the received byte
     reg receiving;             // Flag for UART reception in progress
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             received_byte <= 8'd0;
-            bit_count <= 4'd0;
+            bit_count <= 3'd0;
             receiving <= 1'b0;
             freq_select <= 6'd0;
             wave_select <= 2'd0;
@@ -218,16 +218,10 @@ module uart_receiver (
                 receiving <= 1'b1;
                 bit_count <= 0;
             end else if (receiving) begin
-                // Shift in bits from UART RX line
                 received_byte[bit_count] <= rx;
                 bit_count <= bit_count + 1;
-
-                // Check if byte is fully received (8 bits)
                 if (bit_count == 7) begin
-                    receiving <= 1'b0;  // Stop reception
-                    bit_count <= 0;     // Reset bit counter
-                    
-                    // Process `received_byte` for command interpretation
+                    receiving <= 0;
                     case (received_byte)
                         // Wave selection characters
                         "T": wave_select <= 2'b00;  // Triangle wave
@@ -237,19 +231,57 @@ module uart_receiver (
                         
                         // Frequency selection, converting hex characters '0'-'F'
                         default: begin
-                            if (received_byte >= "0" && received_byte <= "9") begin
-                                freq_select <= received_byte - "0";  // ASCII to binary (0-9)
-                            end else if (received_byte >= "A" && received_byte <= "F") begin
-                                freq_select <= received_byte - "A" + 10;  // ASCII to binary (A-F as 10-15)
-                            end
+                            if (received_byte >= "0" && received_byte <= "9")
+                                freq_select <= (received_byte - "0")[5:0];  // Restrict to 6 bits
+                            else if (received_byte >= "A" && received_byte <= "F")
+                                freq_select <= ((received_byte - "A" + 6'd10) & 6'h3F);  // Restrict to 6 bits
                         end
                     endcase
-                    received_byte <= 8'd0;  // Reset after processing
                 end
             end
         end
     end
 endmodule
+
+module i2s_transmitter (
+    input wire clk,            // System clock
+    input wire rst_n,          // Reset, active low
+    input wire ena,            // Enable signal
+    input wire [7:0] data,     // 8-bit audio data
+    output reg sck,            // Bit clock
+    output reg ws,             // Word select
+    output reg sd              // Serial data output
+);
+
+    reg [3:0] bit_counter;
+    reg [15:0] audio_data;
+
+    // I2S transmission logic
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            bit_counter <= 4'd0;
+            audio_data  <= 16'd0;
+            sck         <= 0;
+            ws          <= 0;
+            sd          <= 0;
+        end else if (ena) begin
+            // Bit clock generation
+            sck <= ~sck;
+            if (sck) begin
+                bit_counter <= bit_counter + 1;
+                if (bit_counter == 15) begin
+                    bit_counter <= 0;
+                    ws <= ~ws;  // Toggle Word Select for I2S framing
+                    // Load next audio sample
+                    audio_data <= {data, data};  // Replicate 8-bit data for 16-bit transmission
+                end
+                // Transmit audio data bit by bit
+                sd <= audio_data[15 - bit_counter];
+            end
+        end
+    end
+endmodule
+
 
 module sine_wave_generator (
     input  wire       ena,      // Enable signal
