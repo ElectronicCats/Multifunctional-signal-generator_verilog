@@ -43,7 +43,9 @@ async def test_adsr_i2s_waveform(dut):
     for i in range(3000):  # Run for sufficient cycles to verify stability
         await RisingEdge(dut.clk)
         sck_current, ws_current, sd_current = dut.uo_out[0].value, dut.uo_out[1].value, dut.uo_out[2].value
-        adsr_amplitude = int(dut.uo_out[7:3].value)
+
+        # Extract adsr_amplitude (bits [7:3] of uo_out)
+        adsr_amplitude = (int(dut.uo_out.value) >> 3) & 0x1F
 
         # Frequency check on sck toggles
         if sck_current != sck_prev:

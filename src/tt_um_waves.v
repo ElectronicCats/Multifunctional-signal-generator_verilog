@@ -196,7 +196,7 @@ endmodule
 module uart_receiver (
     input wire clk,
     input wire rst_n,
-    input wire rx,                 // UART receive line
+    input wire rx,
     output reg [5:0] freq_select,  // Frequency selection (6 bits)
     output reg [1:0] wave_select   // Wave type selection (2 bits)
 );
@@ -214,14 +214,13 @@ module uart_receiver (
             wave_select <= 2'd0;
         end else begin
             if (rx == 0 && !receiving) begin
-                // Start receiving new byte
                 receiving <= 1'b1;
                 bit_count <= 0;
             end else if (receiving) begin
                 received_byte[bit_count] <= rx;
                 bit_count <= bit_count + 1;
                 if (bit_count == 3'd7) begin
-                    receiving <= 0;  // Stop receiving after the 8th bit
+                    receiving <= 0;
 
                     // Decode the received byte
                     case (received_byte)
