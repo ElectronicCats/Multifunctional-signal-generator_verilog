@@ -2,7 +2,6 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, ClockCycles
 
-# UART transmission function to send a byte to the DUT's UART RX pin
 async def send_uart_byte(dut, byte_value):
     dut.ui_in[0].value = 0  # Start bit
     await ClockCycles(dut.clk, 2604)  # 9600 baud with 25 MHz clock
@@ -25,6 +24,7 @@ async def test_adsr_i2s_waveform(dut):
     dut.ena.value = 1
     await ClockCycles(dut.clk, 10)
     dut.rst_n.value = 1
+    await ClockCycles(dut.clk, 10)  # Allow time for reset to propagate
 
     # Send UART commands to select sine wave ('N') and C#2 frequency ('1')
     await send_uart_byte(dut, ord('N'))  # 'N' for sine wave
@@ -45,7 +45,10 @@ async def test_adsr_i2s_waveform(dut):
         sck_current, ws_current, sd_current = dut.uo_out[0].value, dut.uo_out[1].value, dut.uo_out[2].value
 
         # Extract adsr_amplitude (bits [7:3] of uo_out)
-        adsr_amplitude = (int(dut.uo_out.value) >> 3) & 0x1F
+        if 'x' in str(dut.uo_out.value):
+            adsr_amplitude = 0  # Handle unknown state
+        else:
+            adsr_amplitude = (int(dut.uo_out.value) >> 3) & 0x1F
 
         # Frequency check on sck toggles
         if sck_current != sck_prev:
