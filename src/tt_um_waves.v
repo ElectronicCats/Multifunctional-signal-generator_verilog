@@ -233,9 +233,9 @@ module uart_receiver (
                         
                         // Decode frequency selection
                         if (received_byte >= 8'h30 && received_byte <= 8'h39) begin
-                            freq_select <= {(received_byte - 8'h30) & 6'b00111111}[5:0];  // Assuming '0'-'9'
+                            freq_select <= (received_byte - 8'h30) & 6'b00111111;  // Assuming '0'-'9'
                         end else if (received_byte >= 8'h41 && received_byte <= 8'h46) begin
-                            freq_select <= {((received_byte - 8'h41 + 6'd10) & 6'b00111111)[5:0]};  // Assuming 'A'-'F'
+                            freq_select <= ((received_byte - 8'h41 + 6'd10) & 6'b00111111);  // Assuming 'A'-'F'
                         end else begin
                             freq_select <= 6'd0;  // Default or error case
                         end
