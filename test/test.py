@@ -29,6 +29,7 @@ async def test_adsr_i2s_waveform(dut):
     # Send UART commands to select sine wave ('N') and C#2 frequency ('1')
     await send_uart_byte(dut, ord('N'))  # 'N' for sine wave
     await send_uart_byte(dut, ord('1'))  # '1' for C#2 frequency
+    dut._log.info(f"Selected Waveform: {dut.wave_select.value}, Frequency: {dut.freq_select.value}")
 
     # Set example ADSR values via GPIO encoders
     dut.uio_in.value = 0b00001111  # Example ADSR setting; adjust as needed
@@ -36,28 +37,26 @@ async def test_adsr_i2s_waveform(dut):
     # Monitor variables
     sck_prev, ws_prev, sd_prev = dut.uo_out[0].value, dut.uo_out[1].value, dut.uo_out[2].value
     expected_sck_toggle_rate = 25_000_000 // 65  # For frequency ~65 Hz (C#2)
-
-    # Counters for frequency and ADSR monitoring
     sck_toggle_count = 0
 
-    for i in range(3000):  # Run for sufficient cycles to verify stability
+    for i in range(5000):  # Run for sufficient cycles to verify stability
         await RisingEdge(dut.clk)
         sck_current, ws_current, sd_current = dut.uo_out[0].value, dut.uo_out[1].value, dut.uo_out[2].value
 
-    # Log current values to monitor behavior
+        # Log current values to monitor behavior
         if i % 32 == 0:
             dut._log.info(f"Cycle {i}: SCK current: {sck_current}, WS current: {ws_current}, WS previous: {ws_prev}")
 
-    # Frequency check on sck toggles
+        # Frequency check on sck toggles
         if sck_current != sck_prev:
             sck_toggle_count += 1
-            if sck_toggle_count >= expected_sck_toggle_rate:
-                dut._log.info("Frequency toggle verified at C#2 (65 Hz)")
+            if sck_toggle_count == expected_sck_toggle_rate:
+                dut._log.info("SCK toggle rate verified at expected frequency")
                 sck_toggle_count = 0
 
-    # Verify ws toggles for each frame (every 32 sck toggles for I2S)
-    if i % 32 == 0:
-        assert ws_current != ws_prev, "I2S frame ws did not toggle as expected."
-    
-    # Update previous values for next cycle
-    sck_prev, ws_prev, sd_prev = sck_current, ws_current, sd_current
+        # I2S frame sync check (WS toggle every 32 SCK cycles)
+        if sck_toggle_count % 32 == 0 and sck_toggle_count != 0:
+            assert ws_current != ws_prev, "I2S frame WS did not toggle as expected."
+
+        # Update previous values for next cycle
+        sck_prev, ws_prev, sd_prev = sck_current, ws_current, sd_current

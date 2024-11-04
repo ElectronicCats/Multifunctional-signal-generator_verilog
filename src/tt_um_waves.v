@@ -1,10 +1,3 @@
-/*
- * Copyright (c) 2024
- * SPDX-License-Identifier: Apache-2.0
- */
-
-`define default_netname none
-
 module tt_um_waves (
     input  wire [7:0] ui_in,    // ui_in[0] for UART RX
     output wire [7:0] uo_out,   // Dedicated outputs: uo_out[2:0] = {WS, SD, SCK} for I2S
@@ -157,8 +150,6 @@ module tt_um_waves (
     sine_wave_generator       sine_gen(.clk(clk_divided), .rst_n(rst_n), .wave_out(sine_wave_out), .ena(ena));
     adsr_generator            adsr_gen(.clk(clk_divided), .rst_n(rst_n), .attack(attack), .decay(decay), .sustain(sustain), .rel(rel), .amplitude(adsr_amplitude), .ena(ena));
 
-
-
     // Select the wave
     always @(*) begin
         case (wave_select)
@@ -174,7 +165,7 @@ module tt_um_waves (
     i2s_transmitter i2s_out (
         .clk(clk),
         .rst_n(rst_n),
-        .data((selected_wave * adsr_amplitude) >> 8),
+        .data((selected_wave * adsr_amplitude) >> 8), // Ensure this multiplication doesn't exceed 8 bits
         .sck(sck),
         .ws(ws),
         .sd(sd),
@@ -185,7 +176,7 @@ module tt_um_waves (
     assign uo_out[0] = sck;
     assign uo_out[1] = ws;
     assign uo_out[2] = sd;
-    assign uo_out[7:3] = adsr_amplitude[4:0];
+    assign uo_out[7:3] = 5'b0; // Ensure remaining bits are zero
 
     // Unused output assignments
     assign uio_out = 8'b0;
@@ -193,53 +184,55 @@ module tt_um_waves (
 
 endmodule
 
-
 module uart_receiver (
     input wire clk,
     input wire rst_n,
-    input wire rx,                 // UART receive line
-    output reg [5:0] freq_select,  // Frequency selection (6 bits)
-    output reg [1:0] wave_select   // Wave type selection (2 bits)
+    input wire rx,
+    output reg [5:0] freq_select,
+    output reg [1:0] wave_select
 );
 
-    reg [7:0] received_byte;   // Stores the full received byte
-    reg [2:0] bit_count;       // Counts bits in the received byte (3 bits cover range 0-7)
-    reg receiving;             // Flag for UART reception in progress
+    localparam [7:0] MASK_6_BITS = 8'h3F; // 6-bit mask as 8-bit constant
+    reg [7:0] received_byte;
+    reg [2:0] bit_count;
+    reg receiving;
+    reg [7:0] temp_freq; // Temporary register for bit-width handling
 
     always @(posedge clk) begin
         if (!rst_n) begin
             received_byte <= 8'd0;
             bit_count <= 3'd0;
             receiving <= 1'b0;
-            freq_select <= 6'd0;
-            wave_select <= 2'd0;
+            freq_select <= 6'd0;  // Ensure it is 6 bits
+            wave_select <= 2'd0;  // Ensure it is 2 bits
         end else begin
             if (rx == 0 && !receiving) begin
-                // Start receiving new byte
                 receiving <= 1'b1;
                 bit_count <= 0;
             end else if (receiving) begin
                 received_byte[bit_count] <= rx;
                 bit_count <= bit_count + 1;
                 if (bit_count == 3'd7) begin
-                    receiving <= 0;  // Stop receiving after the 8th bit
+                    receiving <= 1'b0;
 
+                    // Wave selection based on received_byte value
                     case (received_byte)
-                        // Wave selection characters
-                        8'h54: wave_select <= 2'b00;  // "T" - Triangle wave
-                        8'h53: wave_select <= 2'b01;  // "S" - Sawtooth wave
-                        8'h51: wave_select <= 2'b10;  // "Q" - Square wave
-                        8'h4E: wave_select <= 2'b11;  // "N" - Sine wave
+                        8'h54: wave_select <= 2'b00; // 'T'
+                        8'h53: wave_select <= 2'b01; // 'S'
+                        8'h51: wave_select <= 2'b10; // 'Q'
+                        8'h4E: wave_select <= 2'b11; // 'N'
                         default: wave_select <= 2'b00;
                     endcase
 
-                    // Decode frequency selection for "0"-"9" and "A"-"F"
+                    // Frequency selection with temporary register for 6-bit masking
                     if (received_byte >= 8'h30 && received_byte <= 8'h39) begin
-                        freq_select <= (received_byte - 8'h30) & 6'h3F;  // Handles "0"-"9" to 6 bits
+                        temp_freq <= received_byte - 8'h30; // Subtract to get 0-9
+                        freq_select <= temp_freq[5:0];      // Assign lower 6 bits
                     end else if (received_byte >= 8'h41 && received_byte <= 8'h46) begin
-                        freq_select <= ((received_byte - 8'h41 + 6'd10) & 6'h3F);  // Handles "A"-"F" to 6 bits
+                        temp_freq <= received_byte - 8'h37; // Subtract to get 10-15 for A-F
+                        freq_select <= temp_freq[5:0];      // Assign lower 6 bits
                     end else begin
-                        freq_select <= 6'd0;  // Default or error case
+                        freq_select <= 6'd0; // Default to zero if not valid
                     end
                 end
             end
@@ -247,12 +240,13 @@ module uart_receiver (
     end
 endmodule
 
+
 module i2s_transmitter (
     input wire clk,            // System clock
     input wire rst_n,          // Reset, active low
     input wire ena,            // Enable signal
     input wire [7:0] data,     // 8-bit audio data
-    output reg sck,            // Bit clock
+    output reg sck,                       // Bit clock
     output reg ws,             // Word select
     output reg sd              // Serial data output
 );
