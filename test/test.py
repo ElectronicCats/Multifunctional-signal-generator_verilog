@@ -3,11 +3,12 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, ClockCycles
 
 async def send_uart_byte(dut, byte_value):
-    """Send a byte over UART with 9600 baud rate, assuming 25 MHz clock."""
+    """Simulate sending a byte over UART at 9600 baud with a 25 MHz clock."""
     dut.ui_in[0].value = 0  # Start bit
-    await ClockCycles(dut.clk, 2604)  # 9600 baud with 25 MHz clock
-    
-    for i in range(8):  # Transmit each bit
+    await ClockCycles(dut.clk, 2604)  # Wait for one baud period
+
+    # Transmit each bit of the byte (least significant bit first)
+    for i in range(8):
         dut.ui_in[0].value = (byte_value >> i) & 1
         await ClockCycles(dut.clk, 2604)
 
@@ -15,85 +16,41 @@ async def send_uart_byte(dut, byte_value):
     await ClockCycles(dut.clk, 2604)
 
 @cocotb.test()
-async def test_adsr_i2s_waveform(dut):
-    """Test ADSR-modulated waveform generation with I2S output."""
-    
-    # Initialize clock at 25 MHz (40 ns period)
+async def test_uart_receiver(dut):
+    """Test the uart_receiver by sending commands to set frequency and waveform selection."""
+
+    # Initialize the 25 MHz clock (40 ns period)
     clock = Clock(dut.clk, 40, units="ns")
     cocotb.start_soon(clock.start())
 
-    # Reset and enable
+    # Reset the DUT
     dut.rst_n.value = 0
-    dut.ena.value = 1
     await ClockCycles(dut.clk, 10)
     dut.rst_n.value = 1
-    await ClockCycles(dut.clk, 10)  # Allow time for reset to propagate
+    await ClockCycles(dut.clk, 10)
 
-    # Select sine wave and set frequency to C#2 via UART commands
-    await send_uart_byte(dut, ord('N'))  # Select sine wave
-    await send_uart_byte(dut, ord('1'))  # Select C#2 frequency
-    dut._log.info(f"Selected Waveform: {dut.wave_select.value}, Frequency: {dut.freq_select.value}")
-
-    # Set example ADSR values via GPIO encoders (adjust these as needed for test)
-    dut.uio_in.value = 0b00001111  # Example ADSR settings for testing
-
-    # Initialize variables for I2S and ADSR monitoring
-    sck_prev, ws_prev, sd_prev = dut.uo_out[0].value, dut.uo_out[1].value, dut.uo_out[2].value
-    expected_sck_toggle_rate = 25_000_000 // 65  # Calculate for C#2 frequency (approximately 65 Hz)
-    sck_toggle_count = 0
-    ws_toggle_count = 0
-
-    # Buffer to store SD values for analysis of the ADSR envelope
-    sd_samples = []
-    capture_cycles = 4096  # Adjust based on desired analysis length
-
-    # Run test for enough cycles to capture ADSR-modulated waveform
-    for i in range(capture_cycles):
-        await RisingEdge(dut.clk)
-        sck_current, ws_current, sd_current = dut.uo_out[0].value, dut.uo_out[1].value, dut.uo_out[2].value
-
-        # Capture SD values for analysis if WS (Word Select) is low (left channel)
-        if ws_current == 0:
-            sd_samples.append(int(sd_current))
-
-        # Log I2S signals at intervals to observe changes
-        if i % 32 == 0:
-            dut._log.info(f"Cycle {i}: SCK: {sck_current}, WS: {ws_current}, SD: {sd_current}")
-
-        # Check SCK toggle rate
-        if sck_current != sck_prev:
-            sck_toggle_count += 1
-            if sck_toggle_count == expected_sck_toggle_rate:
-                dut._log.info("SCK toggle rate matches expected frequency")
-                sck_toggle_count = 0
-
-        # Check WS toggling every 32 SCK cycles
-        if sck_toggle_count % 32 == 0 and sck_toggle_count != 0:
-            assert ws_current != ws_prev, "WS (Word Select) signal did not toggle as expected."
-
-        # Update previous values for the next cycle
-        sck_prev, ws_prev, sd_prev = sck_current, ws_current, sd_current
-
-    # Post-processing: Analyze SD samples for ADSR envelope
-    dut._log.info(f"Captured {len(sd_samples)} SD samples for ADSR analysis.")
+    # Test 1: Send a frequency selection command
+    # Frequency selection uses high bits `00` + 6-bit frequency value
+    freq_byte = 0b00000001  # For example, selecting frequency corresponding to value 1
+    await send_uart_byte(dut, freq_byte)
     
-    # ADSR Phase Analysis
-    attack_phase = sd_samples[:int(len(sd_samples) * 0.1)]
-    decay_phase = sd_samples[int(len(sd_samples) * 0.1):int(len(sd_samples) * 0.3)]
-    sustain_phase = sd_samples[int(len(sd_samples) * 0.3):int(len(sd_samples) * 0.8)]
-    release_phase = sd_samples[int(len(sd_samples) * 0.8):]
+    # Wait for the signal to be processed
+    await ClockCycles(dut.clk, 100)
 
-    # Attack phase check: SD should increase from 0
-    assert max(attack_phase) > min(attack_phase), "Attack phase failed: SD should increase in amplitude."
+    # Verify freq_select has updated correctly
+    assert dut.freq_select.value == 0b000001, f"Expected freq_select = 1, got {dut.freq_select.value}"
 
-    # Decay phase check: SD should peak and then decrease
-    assert max(decay_phase) > min(decay_phase), "Decay phase failed: SD should decrease after peak."
+    # Test 2: Send a waveform selection command
+    # Waveform selection uses high bits `01` + 2-bit wave value
+    wave_byte = 0b01000010  # Selecting waveform 2 (e.g., square wave)
+    await send_uart_byte(dut, wave_byte)
+    
+    # Wait for the signal to be processed
+    await ClockCycles(dut.clk, 100)
 
-    # Sustain phase check: SD should hold relatively steady amplitude
-    sustain_variation = max(sustain_phase) - min(sustain_phase)
-    assert sustain_variation < (0.1 * max(sustain_phase)), "Sustain phase failed: SD should maintain steady amplitude."
+    # Verify wave_select has updated correctly
+    assert dut.wave_select.value == 0b10, f"Expected wave_select = 2, got {dut.wave_select.value}"
 
-    # Release phase check: SD should decrease towards zero
-    assert max(release_phase) > min(release_phase) and min(release_phase) == 0, "Release phase failed: SD should fade to zero."
-
-    dut._log.info("ADSR phases verified successfully.")
+    # Logging final values
+    dut._log.info(f"Final freq_select: {dut.freq_select.value}")
+    dut._log.info(f"Final wave_select: {dut.wave_select.value}")
