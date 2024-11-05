@@ -195,7 +195,6 @@ module uart_receiver (
     reg [7:0] received_byte;
     reg [2:0] bit_count;
     reg receiving;
-    reg [5:0] temp_freq; // Reduced to 6 bits to match freq_select width
 
     always @(posedge clk) begin
         if (!rst_n) begin
@@ -223,13 +222,11 @@ module uart_receiver (
                         default: wave_select <= 2'b00;
                     endcase
 
-                    // Frequency selection with temp_freq for 6-bit masking
+                    // Frequency selection
                     if (received_byte >= 8'h30 && received_byte <= 8'h39) begin
-                        temp_freq <= received_byte - 8'h30; // Convert 0-9 to 6 bits
-                        freq_select <= temp_freq;
+                        freq_select <= (received_byte - 8'h30) & 6'h3F;  // Extract lower 6 bits
                     end else if (received_byte >= 8'h41 && received_byte <= 8'h46) begin
-                        temp_freq <= received_byte - 8'h37; // Convert A-F to 6 bits
-                        freq_select <= temp_freq;
+                        freq_select <= (received_byte - 8'h37) & 6'h3F;  // Extract lower 6 bits
                     end else begin
                         freq_select <= 6'd0; // Default to zero if not valid
                     end
@@ -238,6 +235,7 @@ module uart_receiver (
         end
     end
 endmodule
+
 
 
 
