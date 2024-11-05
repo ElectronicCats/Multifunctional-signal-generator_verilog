@@ -187,25 +187,24 @@ endmodule
 module uart_receiver (
     input wire clk,
     input wire rst_n,
-    input wire rx,               // UART receive line
-    output reg [5:0] freq_select, // Frequency selection (6 bits)
-    output reg [1:0] wave_select  // Wave type selection (2 bits)
+    input wire rx,
+    output reg [5:0] freq_select, // 6-bit Frequency selection
+    output reg [1:0] wave_select  // 2-bit Wave type selection
 );
 
-    reg [7:0] received_byte;  // Stores the full received byte
-    reg [2:0] bit_count;      // Counts bits in the received byte
-    reg receiving;            // Flag for UART reception in progress
+    reg [7:0] received_byte;      // Stores the full received byte
+    reg [2:0] bit_count;          // Counts bits in the received byte (3 bits cover range 0-7)
+    reg receiving;                // Flag for UART reception in progress
 
-    always @(posedge clk or negedge rst_n) begin
+    always @(posedge clk) begin
         if (!rst_n) begin
             received_byte <= 8'd0;
             bit_count <= 3'd0;
             receiving <= 1'b0;
-            freq_select <= 6'd0;
-            wave_select <= 2'd0;
+            freq_select <= 6'd0;    // Ensure it is 6 bits
+            wave_select <= 2'd0;    // Ensure it is 2 bits
         end else begin
             if (rx == 0 && !receiving) begin
-                // Start receiving new byte
                 receiving <= 1'b1;
                 bit_count <= 0;
             end else if (receiving) begin
@@ -214,30 +213,28 @@ module uart_receiver (
                 if (bit_count == 3'd7) begin
                     receiving <= 1'b0;
 
-                    // Wave selection commands
+                    // Wave selection based on specific byte values
                     case (received_byte)
-                        8'h54: wave_select <= 2'b00;  // "T" - Triangle
-                        8'h53: wave_select <= 2'b01;  // "S" - Sawtooth
-                        8'h51: wave_select <= 2'b10;  // "Q" - Square
-                        8'h4E: wave_select <= 2'b11;  // "N" - Sine
-                        default: wave_select <= 2'b00;
+                        8'h54: wave_select <= 2'b00; // 'T' - Triangle wave
+                        8'h53: wave_select <= 2'b01; // 'S' - Sawtooth wave
+                        8'h51: wave_select <= 2'b10; // 'Q' - Square wave
+                        8'h4E: wave_select <= 2'b11; // 'N' - Sine wave
+                        default: wave_select <= 2'b00; // Default to Triangle wave
                     endcase
 
-                    // Frequency selection with 6-bit mask
+                    // Frequency selection based on ASCII character range
                     if (received_byte >= 8'h30 && received_byte <= 8'h39) begin
-                        freq_select <= (received_byte - 8'h30) & 6'h3F; // Numbers 0-9
+                        freq_select <= received_byte[5:0] - 6'd48; // ASCII '0'-'9' to 0-9
                     end else if (received_byte >= 8'h41 && received_byte <= 8'h46) begin
-                        freq_select <= (received_byte - 8'h37) & 6'h3F; // Letters A-F
+                        freq_select <= received_byte[5:0] - 6'd55; // ASCII 'A'-'F' to 10-15
                     end else begin
-                        freq_select <= 6'd0;
+                        freq_select <= 6'd0; // Default to 0 if invalid byte
                     end
                 end
             end
         end
     end
 endmodule
-
-
 
 
 
