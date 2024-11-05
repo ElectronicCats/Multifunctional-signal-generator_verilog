@@ -40,6 +40,11 @@ async def test_comprehensive_functionality(dut):
     # Wait for the settings to propagate
     await ClockCycles(dut.clk, 100)
 
+    # Wait until uo_out is resolved to a valid value
+    await RisingEdge(dut.clk)
+    while 'x' in str(dut.uo_out.value.binstr) or 'z' in str(dut.uo_out.value.binstr):
+        await RisingEdge(dut.clk)
+
     # Check if ADSR parameters are affecting the amplitude modulation
     adsr_value = int(dut.uo_out.value) >> 3  # Extract bits [7:3] of uo_out
     assert adsr_value != 0, "Expected ADSR modulation on uo_out[7:3]"
