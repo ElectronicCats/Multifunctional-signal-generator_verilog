@@ -6,9 +6,7 @@ module tt_um_waves (
     output wire [7:0] uio_oe,   // IOs: Enable path (set to input mode, all 0)
     input  wire       ena,      // Enable signal
     input  wire       clk,      // System clock
-    input  wire       rst_n,     // Reset, active low
-    output wire [5:0] freq_select, // Add these lines to expose freq_select
-    output wire [1:0] wave_select  // and wave_select to the top level
+    input  wire       rst_n     // Reset, active low
 );
 
     // UART signal

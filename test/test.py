@@ -30,27 +30,25 @@ async def test_uart_receiver(dut):
     await ClockCycles(dut.clk, 10)
 
     # Test 1: Send a frequency selection command
-    # Frequency selection uses high bits `00` + 6-bit frequency value
-    freq_byte = 0b00000001  # For example, selecting frequency corresponding to value 1
+    freq_byte = 0b00000001  # Example: selecting frequency corresponding to value 1
     await send_uart_byte(dut, freq_byte)
-    
+
     # Wait for the signal to be processed
     await ClockCycles(dut.clk, 100)
 
     # Verify freq_select has updated correctly
-    assert dut.freq_select.value == 0b000001, f"Expected freq_select = 1, got {dut.freq_select.value}"
+    assert dut.uart_rx_inst.freq_select.value == 0b000001, f"Expected freq_select = 1, got {dut.uart_rx_inst.freq_select.value}"
 
     # Test 2: Send a waveform selection command
-    # Waveform selection uses high bits `01` + 2-bit wave value
-    wave_byte = 0b01000010  # Selecting waveform 2 (e.g., square wave)
+    wave_byte = 0b01000010  # Example: selecting waveform 2 (e.g., square wave)
     await send_uart_byte(dut, wave_byte)
-    
+
     # Wait for the signal to be processed
     await ClockCycles(dut.clk, 100)
 
     # Verify wave_select has updated correctly
-    assert dut.wave_select.value == 0b10, f"Expected wave_select = 2, got {dut.wave_select.value}"
+    assert dut.uart_rx_inst.wave_select.value == 0b10, f"Expected wave_select = 2, got {dut.uart_rx_inst.wave_select.value}"
 
     # Logging final values
-    dut._log.info(f"Final freq_select: {dut.freq_select.value}")
-    dut._log.info(f"Final wave_select: {dut.wave_select.value}")
+    dut._log.info(f"Final freq_select: {dut.uart_rx_inst.freq_select.value}")
+    dut._log.info(f"Final wave_select: {dut.uart_rx_inst.wave_select.value}")
