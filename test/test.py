@@ -29,58 +29,32 @@ async def test_comprehensive_functionality(dut):
     dut.rst_n.value = 1
     await ClockCycles(dut.clk, 10)
 
-    # -------- UART Testing --------
-    # Send frequency and waveform selection via UART
-    freq_byte = 0x31  # Example byte to set frequency (value '1')
-    wave_byte = 0x51  # Example byte to set waveform to square wave ('Q')
+    # Send frequency selection command
+    freq_byte = 0b00000001  # Frequency selection value 1
     await send_uart_byte(dut, freq_byte)
+    
+    # Send waveform selection command
+    wave_byte = 0b01000010  # Selecting waveform 2 (e.g., square wave)
     await send_uart_byte(dut, wave_byte)
-    await ClockCycles(dut.clk, 100)  # Allow for processing
 
-    # Check `uo_out` for expected frequency and wave type settings
-    # Assuming frequency and wave select settings affect the output wave characteristics
-    dut._log.info("Checking frequency and wave type based on `uo_out` waveform")
-    # Verify signal patterns indirectly in I2S section below
+    # Wait for the settings to propagate
+    await ClockCycles(dut.clk, 100)
 
-    # -------- ADSR Testing --------
-    # Simulate encoder inputs to adjust ADSR parameters
-    dut.uio_in.value = 0b00001111  # Example to modify ADSR settings
-    await ClockCycles(dut.clk, 20)  # Allow time to register input
+    # Check if ADSR parameters are affecting the amplitude modulation
+    adsr_value = int(dut.uo_out.value) >> 3  # Extract bits [7:3] of uo_out
+    assert adsr_value != 0, "Expected ADSR modulation on uo_out[7:3]"
 
-    # Verify ADSR waveform modulation on `uo_out`
-    assert dut.uo_out[7:3].value != 0, "ADSR modulation expected on uo_out[7:3]"
+    # Check I2S signals for activity
+    sck_initial = int(dut.uo_out[0].value)
+    ws_initial = int(dut.uo_out[1].value)
+    sd_initial = int(dut.uo_out[2].value)
+    
+    # Wait for some clock cycles and check if I2S signals are toggling
+    await ClockCycles(dut.clk, 10)
+    assert int(dut.uo_out[0].value) != sck_initial, "Expected SCK to toggle"
+    assert int(dut.uo_out[1].value) != ws_initial, "Expected WS to toggle"
+    assert int(dut.uo_out[2].value) != sd_initial, "Expected SD to toggle"
 
-    # -------- I2S Output Testing --------
-    # Check the I2S signals `sck`, `ws`, and `sd` in `uo_out[2:0]`
-    dut._log.info("Monitoring I2S outputs for modulation and waveform verification.")
-    sck_toggle_count = 0
-    ws_toggle_count = 0
-    previous_sck = dut.uo_out[0].value
-    previous_ws = dut.uo_out[1].value
-
-    for i in range(5000):
-        await RisingEdge(dut.clk)
-        
-        # Capture current values of I2S signals
-        current_sck = dut.uo_out[0].value
-        current_ws = dut.uo_out[1].value
-        current_sd = dut.uo_out[2].value
-
-        # Detect `sck` and `ws` toggling
-        if current_sck != previous_sck:
-            sck_toggle_count += 1
-            if sck_toggle_count % 32 == 0:
-                ws_toggle_count += 1
-
-        # Log the `sd` (data line) state periodically to observe wave modulation
-        if i % 100 == 0:
-            dut._log.info(f"Cycle {i}: SCK={current_sck}, WS={current_ws}, SD={current_sd}")
-
-        # Update previous state values
-        previous_sck = current_sck
-        previous_ws = current_ws
-
-    # Verify the I2S toggling counts to confirm I2S behavior
-    assert sck_toggle_count > 0, "Expected `sck` to toggle"
-    assert ws_toggle_count > 0, "Expected `ws` to toggle"
-    dut._log.info("Test completed successfully.")
+    # Log results
+    dut._log.info(f"Final ADSR amplitude bits: {adsr_value}")
+    dut._log.info("I2S signals toggled as expected")
