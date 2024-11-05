@@ -192,19 +192,18 @@ module uart_receiver (
     output reg [1:0] wave_select
 );
 
-    localparam [7:0] MASK_6_BITS = 8'h3F; // 6-bit mask as 8-bit constant
     reg [7:0] received_byte;
     reg [2:0] bit_count;
     reg receiving;
-    reg [7:0] temp_freq; // Temporary register for bit-width handling
+    reg [5:0] temp_freq; // Reduced to 6 bits to match freq_select width
 
     always @(posedge clk) begin
         if (!rst_n) begin
             received_byte <= 8'd0;
             bit_count <= 3'd0;
             receiving <= 1'b0;
-            freq_select <= 6'd0;  // Ensure it is 6 bits
-            wave_select <= 2'd0;  // Ensure it is 2 bits
+            freq_select <= 6'd0;
+            wave_select <= 2'd0;
         end else begin
             if (rx == 0 && !receiving) begin
                 receiving <= 1'b1;
@@ -224,13 +223,13 @@ module uart_receiver (
                         default: wave_select <= 2'b00;
                     endcase
 
-                    // Frequency selection with temporary register for 6-bit masking
+                    // Frequency selection with temp_freq for 6-bit masking
                     if (received_byte >= 8'h30 && received_byte <= 8'h39) begin
-                        temp_freq <= received_byte - 8'h30; // Subtract to get 0-9
-                        freq_select <= temp_freq[5:0];      // Assign lower 6 bits
+                        temp_freq <= received_byte - 8'h30; // Convert 0-9 to 6 bits
+                        freq_select <= temp_freq;
                     end else if (received_byte >= 8'h41 && received_byte <= 8'h46) begin
-                        temp_freq <= received_byte - 8'h37; // Subtract to get 10-15 for A-F
-                        freq_select <= temp_freq[5:0];      // Assign lower 6 bits
+                        temp_freq <= received_byte - 8'h37; // Convert A-F to 6 bits
+                        freq_select <= temp_freq;
                     end else begin
                         freq_select <= 6'd0; // Default to zero if not valid
                     end
@@ -239,6 +238,7 @@ module uart_receiver (
         end
     end
 endmodule
+
 
 
 module i2s_transmitter (
