@@ -187,16 +187,16 @@ endmodule
 module uart_receiver (
     input wire clk,
     input wire rst_n,
-    input wire rx,
-    output reg [5:0] freq_select,
-    output reg [1:0] wave_select
+    input wire rx,               // UART receive line
+    output reg [5:0] freq_select, // Frequency selection (6 bits)
+    output reg [1:0] wave_select  // Wave type selection (2 bits)
 );
 
-    reg [7:0] received_byte;
-    reg [2:0] bit_count;
-    reg receiving;
+    reg [7:0] received_byte;  // Stores the full received byte
+    reg [2:0] bit_count;      // Counts bits in the received byte
+    reg receiving;            // Flag for UART reception in progress
 
-    always @(posedge clk) begin
+    always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             received_byte <= 8'd0;
             bit_count <= 3'd0;
@@ -205,6 +205,7 @@ module uart_receiver (
             wave_select <= 2'd0;
         end else begin
             if (rx == 0 && !receiving) begin
+                // Start receiving new byte
                 receiving <= 1'b1;
                 bit_count <= 0;
             end else if (receiving) begin
@@ -213,28 +214,29 @@ module uart_receiver (
                 if (bit_count == 3'd7) begin
                     receiving <= 1'b0;
 
-                    // Wave selection based on received_byte value
+                    // Wave selection commands
                     case (received_byte)
-                        8'h54: wave_select <= 2'b00; // 'T'
-                        8'h53: wave_select <= 2'b01; // 'S'
-                        8'h51: wave_select <= 2'b10; // 'Q'
-                        8'h4E: wave_select <= 2'b11; // 'N'
+                        8'h54: wave_select <= 2'b00;  // "T" - Triangle
+                        8'h53: wave_select <= 2'b01;  // "S" - Sawtooth
+                        8'h51: wave_select <= 2'b10;  // "Q" - Square
+                        8'h4E: wave_select <= 2'b11;  // "N" - Sine
                         default: wave_select <= 2'b00;
                     endcase
 
-                    // Frequency selection
+                    // Frequency selection with 6-bit mask
                     if (received_byte >= 8'h30 && received_byte <= 8'h39) begin
-                        freq_select <= (received_byte - 8'h30) & 6'h3F;  // Extract lower 6 bits
+                        freq_select <= (received_byte - 8'h30) & 6'h3F; // Numbers 0-9
                     end else if (received_byte >= 8'h41 && received_byte <= 8'h46) begin
-                        freq_select <= (received_byte - 8'h37) & 6'h3F;  // Extract lower 6 bits
+                        freq_select <= (received_byte - 8'h37) & 6'h3F; // Letters A-F
                     end else begin
-                        freq_select <= 6'd0; // Default to zero if not valid
+                        freq_select <= 6'd0;
                     end
                 end
             end
         end
     end
 endmodule
+
 
 
 
