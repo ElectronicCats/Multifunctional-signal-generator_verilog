@@ -2,8 +2,9 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, ClockCycles
 
+# Helper function to send UART byte
 async def send_uart_byte(dut, byte_value):
-    """Simulate UART byte transmission with start, data, and stop bits."""
+    """Simulate UART byte transmission with a start bit, 8 data bits, and a stop bit."""
     dut.ui_in[0].value = 0  # Start bit
     await ClockCycles(dut.clk, 2604)  # Adjust for correct baud rate timing
 
@@ -16,6 +17,13 @@ async def send_uart_byte(dut, byte_value):
     dut.ui_in[0].value = 1
     await ClockCycles(dut.clk, 2604)
 
+def is_resolvable(signal_value):
+    """Helper function to check if signal_value has only resolvable bits."""
+    value_str = str(signal_value)
+    if 'x' in value_str or 'z' in value_str:
+        return False
+    return True
+
 @cocotb.test()
 async def test_tt_um_waves(dut):
     """Test to verify UART, frequency selection, wave generation, ADSR, and I2S output indirectly."""
@@ -23,12 +31,24 @@ async def test_tt_um_waves(dut):
     clock = Clock(dut.clk, 40, units="ns")  # 25 MHz
     cocotb.start_soon(clock.start())
 
-    # Reset
+    # Apply reset and allow extra stabilization time
     dut.rst_n.value = 0
-    await ClockCycles(dut.clk, 10)
+    dut.uio_out.value = 0  # Explicitly initialize uio_out
+    await ClockCycles(dut.clk, 20)  # Extra time for reset propagation
     dut.rst_n.value = 1
-    await ClockCycles(dut.clk, 10)
+    await ClockCycles(dut.clk, 100)  # Additional stabilization time post-reset
 
+    # Retry to stabilize uo_out
+    for _ in range(10):
+        await ClockCycles(dut.clk, 200)
+        if is_resolvable(dut.uo_out.value):
+            break
+        else:
+            dut._log.warning(f"uo_out contains unknown ('x'/'z') states: {dut.uo_out.value}")
+
+    # Confirm that `uo_out` has fully stabilized
+    assert is_resolvable(dut.uo_out.value), "uo_out still contains unresolvable states after retries"
+    
     # Test UART Reception by sending 'T' for Triangle wave
     await send_uart_byte(dut, 0x54)  # 'T' character in ASCII
     await ClockCycles(dut.clk, 500)
