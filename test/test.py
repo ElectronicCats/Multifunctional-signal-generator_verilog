@@ -33,14 +33,57 @@ async def test_tt_um_waves(dut):
     await send_uart_byte(dut, 0x54)  # 'T' character in ASCII
     await ClockCycles(dut.clk, 500)
 
-    # Observe `uo_out` for `selected_wave` behavior change
-    prev_selected_wave = dut.uo_out[2:0].value
+    # Observe `uo_out` for selected_wave behavior change using individual bits
+    prev_selected_wave = (dut.uo_out[2].value << 2) | (dut.uo_out[1].value << 1) | dut.uo_out[0].value
     await ClockCycles(dut.clk, 1000)
-    assert dut.uo_out[2:0].value != prev_selected_wave, "Expected `selected_wave` pattern change indicating wave_select=00"
+    current_selected_wave = (dut.uo_out[2].value << 2) | (dut.uo_out[1].value << 1) | dut.uo_out[0].value
+    assert current_selected_wave != prev_selected_wave, "Expected `selected_wave` pattern change indicating wave_select=00"
 
     # Test frequency selection by sending '1'
     await send_uart_byte(dut, 0x31)  # ASCII '1'
     await ClockCycles(dut.clk, 500)
     assert dut.clk_divided.value == 1 or dut.clk_divided.value == 0, "Expected toggling of clk_divided based on freq_select=000001"
 
-    # Additional tests as needed for ADSR and I2S functionality
+    # Test ADSR Modulation: Simulate encoder settings
+    # Setting attack, decay, sustain, and release values by manually adjusting uio_in signals
+    dut.uio_in[0].value = 1  # Encoder A for Attack
+    dut.uio_in[1].value = 0  # Encoder B for Attack
+    await ClockCycles(dut.clk, 50)
+    assert dut.attack.value > 0, "Expected non-zero attack value"
+
+    dut.uio_in[2].value = 1  # Encoder A for Decay
+    dut.uio_in[3].value = 0  # Encoder B for Decay
+    await ClockCycles(dut.clk, 50)
+    assert dut.decay.value > 0, "Expected non-zero decay value"
+
+    dut.uio_in[4].value = 1  # Encoder A for Sustain
+    dut.uio_in[5].value = 0  # Encoder B for Sustain
+    await ClockCycles(dut.clk, 50)
+    assert dut.sustain.value > 0, "Expected non-zero sustain value"
+
+    dut.uio_in[6].value = 1  # Encoder A for Release
+    dut.uio_in[7].value = 0  # Encoder B for Release
+    await ClockCycles(dut.clk, 50)
+    assert dut.rel.value > 0, "Expected non-zero release value"
+
+    # Verify ADSR modulates amplitude on uo_out
+    await ClockCycles(dut.clk, 100)
+    initial_amplitude = dut.adsr_amplitude.value
+    await ClockCycles(dut.clk, 500)
+    assert dut.adsr_amplitude.value != initial_amplitude, "Expected ADSR amplitude modulation over time"
+
+    # Test I2S Transmission: Check `sck`, `ws`, and `sd` outputs for I2S signal generation
+    # Observe `sck` toggling
+    initial_sck = dut.uo_out[0].value  # sck
+    await ClockCycles(dut.clk, 10)
+    assert dut.uo_out[0].value != initial_sck, "Expected sck toggling in I2S output"
+
+    # Observe `ws` toggling
+    initial_ws = dut.uo_out[1].value  # ws
+    await ClockCycles(dut.clk, 16)  # Typically, ws toggles at half the rate of sck
+    assert dut.uo_out[1].value != initial_ws, "Expected ws toggling in I2S output"
+
+    # Check `sd` carries data
+    for _ in range(10):
+        await ClockCycles(dut.clk, 1)
+        assert dut.uo_out[2].value == 0 or dut.uo_out[2].value == 1, "Expected valid sd bit (0 or 1) in I2S output"
