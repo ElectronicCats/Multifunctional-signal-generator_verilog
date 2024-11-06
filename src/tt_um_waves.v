@@ -6,7 +6,8 @@ module tt_um_waves (
     output wire [7:0] uio_oe,   // IOs: Enable path (set to input mode, all 0)
     input  wire       ena,      // Enable signal
     input  wire       clk,      // System clock
-    input  wire       rst_n     // Reset, active low
+    input  wire       rst_n,     // Reset, active low
+    output wire dbg_sck, dbg_ws, dbg_sd
 );
 
     // UART signal
@@ -179,6 +180,11 @@ module tt_um_waves (
     // Unused output assignments
     assign uio_out = 8'b0;
     assign uio_oe  = 8'b0;
+    // Temporary debug signals
+
+    assign dbg_sck = sck;
+    assign dbg_ws = ws;
+    assign dbg_sd = sd;
 
 endmodule
 
@@ -275,11 +281,7 @@ module i2s_transmitter (
     end
 endmodule
 
-// Temporary debug signals
-output wire dbg_sck, dbg_ws, dbg_sd;
-assign dbg_sck = sck;
-assign dbg_ws = ws;
-assign dbg_sd = sd;
+
 
 
 module sine_wave_generator (
