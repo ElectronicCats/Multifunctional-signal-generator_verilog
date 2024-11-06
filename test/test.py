@@ -43,8 +43,6 @@ async def test_tt_um_waves(dut):
             break
         else:
             dut._log.warning(f"uo_out contains unknown ('x'/'z') states: {dut.uo_out.value}")
-            dut._log.info(f"Debug signals: sck={dut.dbg_sck.value}, ws={dut.dbg_ws.value}, sd={dut.dbg_sd.value}")
-
     # Confirm that `uo_out` has stabilized before proceeding
     assert is_resolvable(dut.uo_out.value), "uo_out still contains unresolvable states after retries"
 
