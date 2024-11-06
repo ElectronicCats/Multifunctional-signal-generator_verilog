@@ -26,28 +26,28 @@ def is_resolvable(signal_value):
 
 @cocotb.test()
 async def test_tt_um_waves(dut):
-    """Test to verify UART, frequency selection, wave generation, ADSR, and I2S output indirectly."""
-    # Start clock for `clk`
-    clock = Clock(dut.clk, 40, units="ns")  # 25 MHz
+    """Test and debug I2S output and `uo_out[6]` issue."""
+    clock = Clock(dut.clk, 40, units="ns")  # 25 MHz clock
     cocotb.start_soon(clock.start())
 
     # Apply reset and allow extra stabilization time
     dut.rst_n.value = 0
-    dut.uio_out.value = 0  # Explicitly initialize uio_out
-    await ClockCycles(dut.clk, 50)  # Longer reset propagation
+    await ClockCycles(dut.clk, 20)
     dut.rst_n.value = 1
-    await ClockCycles(dut.clk, 200)  # Additional stabilization time post-reset
+    await ClockCycles(dut.clk, 100)
 
-    # Retry to stabilize uo_out
+    # Observe `uo_out` and debug signals
     for _ in range(10):
         await ClockCycles(dut.clk, 200)
         if is_resolvable(dut.uo_out.value):
             break
         else:
             dut._log.warning(f"uo_out contains unknown ('x'/'z') states: {dut.uo_out.value}")
+            dut._log.info(f"Debug signals: sck={dut.dbg_sck.value}, ws={dut.dbg_ws.value}, sd={dut.dbg_sd.value}")
 
-    # Confirm that `uo_out` has fully stabilized
+    # Confirm that `uo_out` has stabilized before proceeding
     assert is_resolvable(dut.uo_out.value), "uo_out still contains unresolvable states after retries"
+
     
     # Test UART Reception by sending 'T' for Triangle wave
     await send_uart_byte(dut, 0x54)  # 'T' character in ASCII

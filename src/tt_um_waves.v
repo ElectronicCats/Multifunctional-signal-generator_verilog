@@ -173,9 +173,7 @@ module tt_um_waves (
     );
 
     // Assign I2S output pins to uo_out[2:0] and zero remaining bits
-    assign uo_out[0] = sck;
-    assign uo_out[1] = ws;
-    assign uo_out[2] = sd;
+    assign uo_out[2:0] = {sck, ws, sd};
     assign uo_out[7:3] = 5'b0; // Ensure remaining bits are zero
 
     // Unused output assignments
@@ -276,6 +274,12 @@ module i2s_transmitter (
         end
     end
 endmodule
+
+// Temporary debug signals
+output wire dbg_sck, dbg_ws, dbg_sd;
+assign dbg_sck = sck;
+assign dbg_ws = ws;
+assign dbg_sd = sd;
 
 
 module sine_wave_generator (
