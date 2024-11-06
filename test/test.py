@@ -2,7 +2,6 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, ClockCycles
 
-# Helper function to send UART byte
 async def send_uart_byte(dut, byte_value):
     """Simulate UART byte transmission with a start bit, 8 data bits, and a stop bit."""
     dut.ui_in[0].value = 0  # Start bit
@@ -18,10 +17,11 @@ async def send_uart_byte(dut, byte_value):
     await ClockCycles(dut.clk, 2604)
 
 def is_resolvable(signal_value):
-    """Helper function to check if signal_value has only resolvable bits."""
-    value_str = str(signal_value)
-    if 'x' in value_str or 'z' in value_str:
-        return False
+    """Check each bit of signal_value and log unresolved bits."""
+    for i in range(len(signal_value)):
+        if str(signal_value[i]) in ('x', 'z'):
+            cocotb.log.warning(f"Unresolved bit: uo_out[{i}] = {signal_value[i]}")
+            return False
     return True
 
 @cocotb.test()
@@ -34,9 +34,9 @@ async def test_tt_um_waves(dut):
     # Apply reset and allow extra stabilization time
     dut.rst_n.value = 0
     dut.uio_out.value = 0  # Explicitly initialize uio_out
-    await ClockCycles(dut.clk, 20)  # Extra time for reset propagation
+    await ClockCycles(dut.clk, 50)  # Longer reset propagation
     dut.rst_n.value = 1
-    await ClockCycles(dut.clk, 100)  # Additional stabilization time post-reset
+    await ClockCycles(dut.clk, 200)  # Additional stabilization time post-reset
 
     # Retry to stabilize uo_out
     for _ in range(10):
