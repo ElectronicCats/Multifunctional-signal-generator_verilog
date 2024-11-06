@@ -172,9 +172,8 @@ module tt_um_waves (
         .ena(ena)
     );
 
-    // Assign I2S output pins to uo_out[2:0] and zero remaining bits
-    assign uo_out[2:0] = {sck, ws, sd};
-    assign uo_out[7:3] = 5'b0; // Ensure remaining bits are zero
+    // Assign I2S output pins to uo_out[2:0] and zero out remaining bits
+    assign uo_out = {5'b00000, sck, ws, sd};
 
     // Unused output assignments
     assign uio_out = 8'b0;

@@ -1,5 +1,6 @@
 import cocotb
 from cocotb.clock import Clock
+from cocotb.regression import TestFactory
 from cocotb.triggers import RisingEdge, ClockCycles
 
 async def send_uart_byte(dut, byte_value):
@@ -27,7 +28,7 @@ def is_resolvable(signal_value):
 @cocotb.test()
 async def test_tt_um_waves(dut):
     """Test and debug I2S output and `uo_out[6]` issue."""
-    clock = Clock(dut.clk, 40, units="ns")  # 25 MHz clock
+    clock = Clock(dut.clk, 40, units="ns")  # 25 MHz clock (40 ns period)
     cocotb.start_soon(clock.start())
 
     # Apply reset and allow extra stabilization time
@@ -46,7 +47,6 @@ async def test_tt_um_waves(dut):
     # Confirm that `uo_out` has stabilized before proceeding
     assert is_resolvable(dut.uo_out.value), "uo_out still contains unresolvable states after retries"
 
-    
     # Test UART Reception by sending 'T' for Triangle wave
     await send_uart_byte(dut, 0x54)  # 'T' character in ASCII
     await ClockCycles(dut.clk, 500)
