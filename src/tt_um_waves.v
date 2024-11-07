@@ -14,6 +14,7 @@ module tt_um_waves (
     wire [5:0] freq_select;      // Frequency selection from UART command
     wire [1:0] wave_select;      // Wave type selection from UART command
     wire unused_ui_in = |ui_in[7:1];
+    wire unused_uo_out = |uo_out [7:3];
 
     // I2S signals
     wire sck, ws, sd;
@@ -173,7 +174,10 @@ module tt_um_waves (
     );
 
     // Assign I2S output pins to uo_out[2:0] and zero out remaining bits
-    assign uo_out = {5'b00000, sck, ws, sd};
+    assign uo_out[0] = sck;
+    assign uo_out[1] = ws;
+    assign uo_out[2] = sd;
+    assign uo_out[7:3] = 5'b00000;
 
     // Unused output assignments
     assign uio_out = 8'b0;
