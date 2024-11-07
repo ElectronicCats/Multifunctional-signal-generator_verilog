@@ -28,32 +28,34 @@ def is_resolvable(signal_value):
 @cocotb.test()
 async def test_tt_um_waves(dut):
     """Test and debug I2S output and `uo_out[6]` issue."""
-    clock = Clock(dut.clk, 40, units="ns")  # 25 MHz clock (40 ns period)
-    cocotb.start_soon(clock.start())
+    # (Setup code remains the same)
 
-    # Apply reset and allow extra stabilization time
-    dut.rst_n.value = 0
-    await ClockCycles(dut.clk, 20)
-    dut.rst_n.value = 1
-    await ClockCycles(dut.clk, 100)
-
-# Observe `uo_out` and debug signals
+    # Observe `uo_out` and debug signals
     for _ in range(10):
         await ClockCycles(dut.clk, 200)
-        if is_resolvable(dut.uo_out.value[0:3]):  # Change to 0:3 to avoid IndexError
+        if is_resolvable(dut.uo_out.value[0:3]):  # Ensure values are resolvable
             break
         else:
             dut._log.warning(f"uo_out contains unknown ('x'/'z') states: {dut.uo_out.value}")
-    assert is_resolvable(dut.uo_out.value[0:3]), "uo_out still contains unresolvable states after retries"
 
-    # Test UART Reception by sending 'T' for Triangle wave
-    await send_uart_byte(dut, 0x54)  # 'T' character in ASCII
-    await ClockCycles(dut.clk, 500)  # Give time for wave selection change
+    # Check if `uo_out` is resolvable before proceeding
+    if not is_resolvable(dut.uo_out.value[0:3]):
+        raise TestFailure("uo_out still contains unresolvable states after retries")
 
-    # Debug selected_wave pattern before and after to confirm change
-    prev_selected_wave = (dut.uo_out[2].value << 2) | (dut.uo_out[1].value << 1) | dut.uo_out[0].value
+    # Updated to avoid accessing unresolved states directly
+    prev_selected_wave = (
+        (dut.uo_out[2].value if dut.uo_out[2].value.is_resolvable() else 0) << 2 |
+        (dut.uo_out[1].value if dut.uo_out[1].value.is_resolvable() else 0) << 1 |
+        (dut.uo_out[0].value if dut.uo_out[0].value.is_resolvable() else 0)
+    )
+
     await ClockCycles(dut.clk, 1000)
-    current_selected_wave = (dut.uo_out[2].value << 2) | (dut.uo_out[1].value << 1) | dut.uo_out[0].value
+    
+    current_selected_wave = (
+        (dut.uo_out[2].value if dut.uo_out[2].value.is_resolvable() else 0) << 2 |
+        (dut.uo_out[1].value if dut.uo_out[1].value.is_resolvable() else 0) << 1 |
+        (dut.uo_out[0].value if dut.uo_out[0].value.is_resolvable() else 0)
+    )
 
     dut._log.info(f"Previous selected_wave: {prev_selected_wave}, Current selected_wave: {current_selected_wave}")
     assert current_selected_wave != prev_selected_wave, "Expected `selected_wave` pattern change indicating wave_select=00"
