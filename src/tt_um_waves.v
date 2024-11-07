@@ -1,6 +1,6 @@
 module tt_um_waves (
     input  wire [7:0] ui_in,    // ui_in[0] for UART RX
-    output wire [7:0] uo_out,   // Dedicated outputs: uo_out[2:0] = {WS, SD, SCK} for I2S
+    output reg [7:0] uo_out,    // Dedicated outputs: uo_out[2:0] = {WS, SD, SCK} for I2S
     input  wire [7:0] uio_in,   // GPIO for encoder inputs
     output wire [7:0] uio_out,  // IOs: Unused, set to 0
     output wire [7:0] uio_oe,   // IOs: Enable path (set to input mode, all 0)
@@ -10,11 +10,10 @@ module tt_um_waves (
 );
 
     // UART signal
-    wire uart_rx = ui_in[0];     // UART RX from ui_in[0]
-    wire [5:0] freq_select;      // Frequency selection from UART command
-    wire [1:0] wave_select;      // Wave type selection from UART command
+    wire uart_rx = ui_in[0];
+    wire [5:0] freq_select;
+    wire [1:0] wave_select;
     wire unused_ui_in = |ui_in[7:1];
-    wire unused_uo_out = |uo_out [7:3];
 
     // I2S signals
     wire sck, ws, sd;
@@ -36,7 +35,7 @@ module tt_um_waves (
     reg [31:0] clk_div, clk_div_threshold;
     reg clk_divided;
 
-    // UART receiver module (assuming UART protocol implementation)
+    // UART receiver module
     uart_receiver uart_rx_inst (
         .clk(clk),
         .rst_n(rst_n),
@@ -174,10 +173,12 @@ module tt_um_waves (
     );
 
     // Assign I2S output pins to uo_out[2:0] and zero out remaining bits
-    assign uo_out[0] = sck;
-    assign uo_out[1] = ws;
-    assign uo_out[2] = sd;
-    assign uo_out[7:3] = 5'b00000;
+    always @(*) begin
+        uo_out[0] = sck;
+        uo_out[1] = ws;
+        uo_out[2] = sd;
+        uo_out[7:3] = 5'b00000; // Set unused bits to defined state
+    end
 
     // Unused output assignments
     assign uio_out = 8'b0;
@@ -277,9 +278,6 @@ module i2s_transmitter (
         end
     end
 endmodule
-
-
-
 
 module sine_wave_generator (
     input  wire       ena,      // Enable signal
