@@ -37,14 +37,14 @@ async def test_tt_um_waves(dut):
     dut.rst_n.value = 1
     await ClockCycles(dut.clk, 100)
 
-    # Observe `uo_out` and debug signals
+# Observe `uo_out` and debug signals
     for _ in range(10):
         await ClockCycles(dut.clk, 200)
-        if is_resolvable(dut.uo_out.value[2:0]):
+        if is_resolvable(dut.uo_out.value[0:3]):  # Change to 0:3 to avoid IndexError
             break
         else:
             dut._log.warning(f"uo_out contains unknown ('x'/'z') states: {dut.uo_out.value}")
-    assert is_resolvable(dut.uo_out.value[2:0]), "uo_out still contains unresolvable states after retries"
+    assert is_resolvable(dut.uo_out.value[0:3]), "uo_out still contains unresolvable states after retries"
 
     # Test UART Reception by sending 'T' for Triangle wave
     await send_uart_byte(dut, 0x54)  # 'T' character in ASCII
