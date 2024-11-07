@@ -58,7 +58,8 @@ async def test_tt_um_waves(dut):
     )
 
     dut._log.info(f"Previous selected_wave: {prev_selected_wave}, Current selected_wave: {current_selected_wave}")
-    assert current_selected_wave != prev_selected_wave, "Expected `selected_wave` pattern change indicating wave_select=00"
+    assert current_selected_wave != prev_selected_wave, \
+    "Expected `selected_wave` to change; no change detected after 1000 cycles."
 
     # Test frequency selection by sending '1'
     await send_uart_byte(dut, 0x31)  # ASCII '1'
