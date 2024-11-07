@@ -44,17 +44,18 @@ async def test_tt_um_waves(dut):
             break
         else:
             dut._log.warning(f"uo_out contains unknown ('x'/'z') states: {dut.uo_out.value}")
-    # Confirm that `uo_out` has stabilized before proceeding
     assert is_resolvable(dut.uo_out.value), "uo_out still contains unresolvable states after retries"
 
     # Test UART Reception by sending 'T' for Triangle wave
     await send_uart_byte(dut, 0x54)  # 'T' character in ASCII
-    await ClockCycles(dut.clk, 500)
+    await ClockCycles(dut.clk, 500)  # Give time for wave selection change
 
-    # Observe `uo_out` for selected_wave behavior change using individual bits
+    # Debug selected_wave pattern before and after to confirm change
     prev_selected_wave = (dut.uo_out[2].value << 2) | (dut.uo_out[1].value << 1) | dut.uo_out[0].value
     await ClockCycles(dut.clk, 1000)
     current_selected_wave = (dut.uo_out[2].value << 2) | (dut.uo_out[1].value << 1) | dut.uo_out[0].value
+
+    dut._log.info(f"Previous selected_wave: {prev_selected_wave}, Current selected_wave: {current_selected_wave}")
     assert current_selected_wave != prev_selected_wave, "Expected `selected_wave` pattern change indicating wave_select=00"
 
     # Test frequency selection by sending '1'
