@@ -36,10 +36,11 @@ async def test_tt_um_waves(dut):
     dut.rst_n.value = 1
     await ClockCycles(dut.clk, 10)
 
-    # Track previous and current wave selection in uo_out[0:3]
-    prev_selected_wave = int("".join(str(bit) for bit in dut.uo_out[0:3]), 2)
+    # Track previous and current wave selection using individual bit access
+    prev_selected_wave = (int(dut.uo_out[2].value) << 2) | (int(dut.uo_out[1].value) << 1) | int(dut.uo_out[0].value)
     await ClockCycles(dut.clk, 1000)
-    current_selected_wave = int("".join(str(bit) for bit in dut.uo_out[0:3]), 2)
+    current_selected_wave = (int(dut.uo_out[2].value) << 2) | (int(dut.uo_out[1].value) << 1) | int(dut.uo_out[0].value)
+
     assert current_selected_wave != prev_selected_wave, "Expected `selected_wave` to change after 1000 cycles."
 
     # Test frequency selection by sending UART byte '1'
