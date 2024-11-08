@@ -37,15 +37,14 @@ async def test_tt_um_waves(dut):
     await ClockCycles(dut.clk, 10)
 
     # Verificar que la selección de onda cambia después de 1000 ciclos
-    prev_selected_wave = int("".join(str(bit) for bit in dut.uo_out[0:3]), 2)
+    prev_selected_wave = int("".join(str(dut.uo_out[i].value) for i in range(3)), 2)
     await ClockCycles(dut.clk, 1000)
-    current_selected_wave = int("".join(str(bit) for bit in dut.uo_out[0:3]), 2)
+    current_selected_wave = int("".join(str(dut.uo_out[i].value) for i in range(3)), 2)
     assert current_selected_wave != prev_selected_wave, "Expected `selected_wave` to change after 1000 cycles."
 
     # Simular la transmisión UART con byte '1'
     await send_uart_byte(dut, 0x31)  # ASCII '1'
     await ClockCycles(dut.clk, 500)
-    # Aquí hemos eliminado la aserción sobre `clk_divided`
 
     # Simular la modulación ADSR cambiando los valores de entrada
     dut.uio_in[0].value = 1  # Attack
