@@ -50,31 +50,38 @@ async def test_tt_um_waves(dut):
     dut.uio_in[0].value = 1  # Attack
     dut.uio_in[1].value = 0
     await ClockCycles(dut.clk, 50)
-    # En lugar de verificar el valor de `attack`, verificamos la amplitud ADSR
-    initial_amplitude = dut.adsr_amplitude.value
-    await ClockCycles(dut.clk, 100)  # Esperar un ciclo para que el efecto sea visible
-    assert dut.adsr_amplitude.value != initial_amplitude, "Expected ADSR amplitude to change during attack phase"
+
+    # Verificación del cambio en las señales de depuración durante la fase de Attack
+    initial_attack = dut.debug_attack.value
+    await ClockCycles(dut.clk, 100)
+    assert dut.debug_attack.value != initial_attack, "Expected `debug_attack` to change during attack phase"
 
     dut.uio_in[2].value = 1  # Decay
     dut.uio_in[3].value = 0
     await ClockCycles(dut.clk, 50)
-    initial_amplitude = dut.adsr_amplitude.value
+
+    # Verificación del cambio en las señales de depuración durante la fase de Decay
+    initial_decay = dut.debug_decay.value
     await ClockCycles(dut.clk, 100)
-    assert dut.adsr_amplitude.value != initial_amplitude, "Expected ADSR amplitude to change during decay phase"
+    assert dut.debug_decay.value != initial_decay, "Expected `debug_decay` to change during decay phase"
 
     dut.uio_in[4].value = 1  # Sustain
     dut.uio_in[5].value = 0
     await ClockCycles(dut.clk, 50)
-    initial_amplitude = dut.adsr_amplitude.value
+
+    # Verificación del valor constante de las señales de depuración durante la fase de Sustain
+    initial_sustain = dut.debug_sustain.value
     await ClockCycles(dut.clk, 100)
-    assert dut.adsr_amplitude.value == initial_amplitude, "Expected ADSR amplitude to remain constant during sustain phase"
+    assert dut.debug_sustain.value == initial_sustain, "Expected `debug_sustain` to remain constant during sustain phase"
 
     dut.uio_in[6].value = 1  # Release
     dut.uio_in[7].value = 0
     await ClockCycles(dut.clk, 50)
-    initial_amplitude = dut.adsr_amplitude.value
+
+    # Verificación del cambio en las señales de depuración durante la fase de Release
+    initial_rel = dut.debug_rel.value
     await ClockCycles(dut.clk, 100)
-    assert dut.adsr_amplitude.value != initial_amplitude, "Expected ADSR amplitude to decrease during release phase"
+    assert dut.debug_rel.value != initial_rel, "Expected `debug_rel` to change during release phase"
 
     # Verificar la transmisión I2S: sck, ws y sd en `uo_out`
     for _ in range(10):
