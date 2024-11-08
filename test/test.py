@@ -16,11 +16,11 @@ async def send_uart_byte(dut, byte_value):
     dut.ui_in[0].value = 1
     await ClockCycles(dut.clk, 2604)
 
-def is_resolvable(signal_value):
-    """Check if first three bits of `signal_value` are resolvable for I2S verification."""
-    for i in range(3):
-        if str(signal_value[i]) in ('x', 'z'):
-            cocotb.log.warning(f"Unresolved I2S bit: uo_out[{i}] = {signal_value[i]}")
+def is_resolvable(signal_bits):
+    """Check if each bit in signal_bits is resolvable for I2S verification."""
+    for bit in signal_bits:
+        if str(bit) in ('x', 'z'):
+            cocotb.log.warning(f"Unresolved I2S bit: {bit}")
             return False
     return True
 
@@ -36,10 +36,10 @@ async def test_tt_um_waves(dut):
     dut.rst_n.value = 1
     await ClockCycles(dut.clk, 10)
 
-    # Track previous and current wave selection in uo_out[0:3]
-    prev_selected_wave = int("".join(str(bit) for bit in dut.uo_out[0:3]), 2)
+    # Track previous and current wave selection in uo_out[0], uo_out[1], and uo_out[2]
+    prev_selected_wave = int("".join(str(dut.uo_out[i].value) for i in range(3)), 2)
     await ClockCycles(dut.clk, 1000)
-    current_selected_wave = int("".join(str(bit) for bit in dut.uo_out[0:3]), 2)
+    current_selected_wave = int("".join(str(dut.uo_out[i].value) for i in range(3)), 2)
     assert current_selected_wave != prev_selected_wave, "Expected `selected_wave` to change after 1000 cycles."
 
     # Test frequency selection by sending UART byte '1'
@@ -76,11 +76,11 @@ async def test_tt_um_waves(dut):
     # Test I2S Transmission: Check `sck`, `ws`, and `sd` in `uo_out`
     for _ in range(10):
         await ClockCycles(dut.clk, 200)
-        if is_resolvable(dut.uo_out.value[0:3]):
+        if is_resolvable([dut.uo_out[i].value for i in range(3)]):
             break
 
-    # Ensure I2S signals in uo_out[0:3] are resolvable
-    assert is_resolvable(dut.uo_out.value[0:3]), "uo_out[0:3] contains unresolvable states after retries"
+    # Ensure I2S signals in uo_out[0], uo_out[1], and uo_out[2] are resolvable
+    assert is_resolvable([dut.uo_out[i].value for i in range(3)]), "uo_out[0:3] contains unresolvable states after retries"
 
     # Observe toggling of I2S signals in `uo_out[0:3]`
     initial_sck = dut.uo_out[0].value  # sck
