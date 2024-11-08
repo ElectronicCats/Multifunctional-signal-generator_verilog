@@ -37,10 +37,10 @@ async def test_tt_um_waves(dut):
     await ClockCycles(dut.clk, 10)
 
     # Track wave selection by observing UART changes
-    initial_wave_selection = dut.uo_out[0:3].value
+    initial_wave_selection = (dut.uo_out[0].value, dut.uo_out[1].value, dut.uo_out[2].value)
     await send_uart_byte(dut, 0x31)  # Send UART byte '1' to change frequency
     await ClockCycles(dut.clk, 500)
-    new_wave_selection = dut.uo_out[0:3].value
+    new_wave_selection = (dut.uo_out[0].value, dut.uo_out[1].value, dut.uo_out[2].value)
     assert new_wave_selection != initial_wave_selection, "Expected change in wave selection after UART command"
 
     # Simulate ADSR modulation by setting attack, decay, sustain, release
