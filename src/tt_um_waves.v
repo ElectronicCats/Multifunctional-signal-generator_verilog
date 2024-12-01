@@ -18,6 +18,11 @@ module tt_um_waves (
     // I2S signals
     wire sck, ws, sd;
 
+    //white noise
+    wire [7:0] white_noise_out;
+    wire white_noise_en; // Señal de habilitación del ruido blanco
+
+
     // ADSR encoder signals from uio_in
     wire encoder_a_attack = uio_in[0];
     wire encoder_b_attack = uio_in[1];
@@ -35,14 +40,15 @@ module tt_um_waves (
     reg [31:0] clk_div, clk_div_threshold;
     reg clk_divided;
 
-    // UART receiver module
     uart_receiver uart_rx_inst (
-        .clk(clk),
-        .rst_n(rst_n),
-        .rx(uart_rx),
-        .freq_select(freq_select),
-        .wave_select(wave_select)
-    );
+    .clk(clk),
+    .rst_n(rst_n),
+    .rx(uart_rx),
+    .freq_select(freq_select),
+    .wave_select(wave_select),
+    .white_noise_en(white_noise_en) // Connect white noise enable signal
+);
+
 
     // Clock divider for frequency selection
     always @(posedge clk) begin
@@ -152,6 +158,9 @@ module tt_um_waves (
 
     // Select the wave
     always @(*) begin
+    if (white_noise_en) begin
+        selected_wave = white_noise_out; // Use white noise if enabled
+    end else begin
         case (wave_select)
             2'b00: selected_wave = tri_wave_out;
             2'b01: selected_wave = saw_wave_out;
@@ -160,6 +169,8 @@ module tt_um_waves (
             default: selected_wave = 8'd0;
         endcase
     end
+end
+
 
     // I2S output module for selected_wave modulated by ADSR
     i2s_transmitter i2s_out (
@@ -171,6 +182,14 @@ module tt_um_waves (
         .sd(sd),
         .ena(ena)
     );
+
+    white_noise_generator noise_gen (
+    .clk(clk_divided),
+    .rst_n(rst_n),
+    .noise_out(white_noise_out),
+    .ena(ena)
+);
+
 
     // Assign I2S output pins to uo_out[2:0] and zero out remaining bits
     always @(*) begin
@@ -191,7 +210,8 @@ module uart_receiver (
     input wire rst_n,
     input wire rx,
     output reg [5:0] freq_select, // 6-bit Frequency selection
-    output reg [1:0] wave_select  // 2-bit Wave type selection
+    output reg [1:0] wave_select, // 2-bit Wave type selection
+    output reg white_noise_en     // Enable flag for white noise
 );
 
     reg [7:0] received_byte;      // Stores the full received byte
@@ -203,8 +223,9 @@ module uart_receiver (
             received_byte <= 8'd0;
             bit_count <= 3'd0;
             receiving <= 1'b0;
-            freq_select <= 6'd0;    // Ensure it is 6 bits
-            wave_select <= 2'd0;    // Ensure it is 2 bits
+            freq_select <= 6'd0;
+            wave_select <= 2'd0;
+            white_noise_en <= 1'b0; // Initialize white noise as disabled
         end else begin
             if (rx == 0 && !receiving) begin
                 receiving <= 1'b1;
@@ -221,8 +242,15 @@ module uart_receiver (
                         8'h53: wave_select <= 2'b01; // 'S' - Sawtooth wave
                         8'h51: wave_select <= 2'b10; // 'Q' - Square wave
                         8'h4E: wave_select <= 2'b11; // 'N' - Sine wave
-                        default: wave_select <= 2'b00; // Default to Triangle wave
+                        default: wave_select <= 2'b00; //
                     endcase
+
+                    // White noise enable based on 'W' (ASCII 0x57)
+                    if (received_byte == 8'h57) begin
+                        white_noise_en <= 1'b1; // Enable white noise
+                    end else if (received_byte == 8'h4F) begin
+                        white_noise_en <= 1'b0; // 'O' - Disable white noise
+                    end
 
                     // Frequency selection based on ASCII character range
                     if (received_byte >= 8'h30 && received_byte <= 8'h39) begin
@@ -234,6 +262,25 @@ module uart_receiver (
                     end
                 end
             end
+        end
+    end
+endmodule
+
+module white_noise_generator (
+    input wire clk,
+    input wire rst_n,
+    output reg [7:0] noise_out,
+    input wire ena
+);
+    reg [15:0] lfsr;
+
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            lfsr <= 16'hACE1; // Seed value
+            noise_out <= 8'd0;
+        end else if (ena) begin
+            lfsr <= {lfsr[14:0], lfsr[15] ^ lfsr[13] ^ lfsr[12] ^ lfsr[10]}; // Feedback taps
+            noise_out <= lfsr[15:8]; // Use upper 8 bits as noise
         end
     end
 endmodule
@@ -278,6 +325,8 @@ module i2s_transmitter (
         end
     end
 endmodule
+
+
 
 module sine_wave_generator (
     input  wire       ena,      // Enable signal
