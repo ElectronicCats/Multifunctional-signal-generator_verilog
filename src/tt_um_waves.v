@@ -14,7 +14,6 @@ module tt_um_waves (
     wire [5:0] freq_select;
     wire [1:0] wave_select;
     wire unused_ui_in = |ui_in[7:1];
-    wire unused_uo_out = |uo_out [7:3];
 
     // I2S signals
     wire sck, ws, sd;
@@ -193,10 +192,12 @@ end
 
 
     // Assign I2S output pins to uo_out[2:0] and zero out remaining bits
-    assign uo_out[0] = sck;
-    assign uo_out[1] = ws;
-    assign uo_out[2] = sd;
-    assign uo_out[7:3] = 5'b00000;
+    always @(*) begin
+        uo_out[0] = sck;
+        uo_out[1] = ws;
+        uo_out[2] = sd;
+        uo_out[7:3] = 5'b00000; // Set unused bits to defined state
+    end
 
     // Unused output assignments
     assign uio_out = 8'b0;
