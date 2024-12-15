@@ -16,17 +16,17 @@ async def send_uart_byte(dut, byte_value):
     dut.ui_in[0].value = 1
     await ClockCycles(dut.clk, 2604)
 
-def is_resolvable(signal_value):
-    """Check if first three bits of `signal_value` are resolvable for I2S verification."""
-    for i in range(3):
-        if str(signal_value[i]) in ('x', 'z'):
-            cocotb.log.warning(f"Unresolved I2S bit: uo_out[{i}] = {signal_value[i]}")
+def is_resolvable(signal_values):
+    """Check if signal values are resolvable for I2S verification."""
+    for value in signal_values:
+        if str(value) in ('x', 'z'):
+            cocotb.log.warning(f"Unresolved I2S bit: {value}")
             return False
     return True
 
 @cocotb.test()
 async def test_tt_um_waves(dut):
-    """Test and debug I2S output and ADSR modulation."""
+    """Test and debug I2S output, waveform selection, white noise, and ADSR modulation."""
     # Initialize clock and reset
     clock = Clock(dut.clk, 10, units="us")
     cocotb.start_soon(clock.start())
@@ -37,70 +37,55 @@ async def test_tt_um_waves(dut):
     await ClockCycles(dut.clk, 10)
 
     # Test wave selection via UART
-    # Test Triangle wave
-    await send_uart_byte(dut, 0x54)  # ASCII 'T' for Triangle wave
-    await ClockCycles(dut.clk, 500)
-    selected_wave = (dut.uo_out[2].value << 2) | (dut.uo_out[1].value << 1) | dut.uo_out[0].value
-    assert selected_wave == 0b000, "Triangle wave not selected as expected"
+    waveforms = {
+        0x54: "Triangle",  # ASCII 'T'
+        0x53: "Sawtooth",  # ASCII 'S'
+        0x51: "Square",    # ASCII 'Q'
+        0x4E: "Sine",      # ASCII 'N'
+        0x57: "White Noise" # ASCII 'W'
+    }
 
-    # Test Sawtooth wave
-    await send_uart_byte(dut, 0x53)  # ASCII 'S' for Sawtooth wave
-    await ClockCycles(dut.clk, 500)
-    selected_wave = (dut.uo_out[2].value << 2) | (dut.uo_out[1].value << 1) | dut.uo_out[0].value
-    assert selected_wave == 0b001, "Sawtooth wave not selected as expected"
+    for byte, name in waveforms.items():
+        await send_uart_byte(dut, byte)
+        await ClockCycles(dut.clk, 500)
+        selected_wave = (dut.uo_out[2].value << 2) | (dut.uo_out[1].value << 1) | dut.uo_out[0].value
 
-    # Test Square wave
-    await send_uart_byte(dut, 0x51)  # ASCII 'Q' for Square wave
-    await ClockCycles(dut.clk, 500)
-    selected_wave = (dut.uo_out[2].value << 2) | (dut.uo_out[1].value << 1) | dut.uo_out[0].value
-    assert selected_wave == 0b010, "Square wave not selected as expected"
+        if name == "White Noise":
+            assert selected_wave == 0b100, f"{name} not selected as expected"
+        else:
+            expected_value = list(waveforms.keys()).index(byte)
+            assert selected_wave == expected_value, f"{name} not selected as expected"
 
-    # Test Sine wave
-    await send_uart_byte(dut, 0x4E)  # ASCII 'N' for Sine wave
-    await ClockCycles(dut.clk, 500)
-    selected_wave = (dut.uo_out[2].value << 2) | (dut.uo_out[1].value << 1) | dut.uo_out[0].value
-    assert selected_wave == 0b011, "Sine wave not selected as expected"
+    # Test ADSR modulation phases using encoder inputs
+    adsr_phases = {
+        "Attack": [0, 1],
+        "Decay": [2, 3],
+        "Sustain": [4, 5],
+        "Release": [6, 7]
+    }
 
-    # Test ADSR modulation phases
-    dut.uio_in[0].value = 1  # Attack
-    dut.uio_in[1].value = 0
-    await ClockCycles(dut.clk, 50)
+    for phase, pins in adsr_phases.items():
+        dut.uio_in[pins[0]].value = 1
+        dut.uio_in[pins[1]].value = 0
+        await ClockCycles(dut.clk, 50)
 
-    initial_attack = dut.debug_attack.value
-    await ClockCycles(dut.clk, 100)
-    assert dut.debug_attack.value != initial_attack, "Expected `debug_attack` to change during attack phase"
+        debug_signal = getattr(dut, f"debug_{phase.lower()}")
+        initial_value = debug_signal.value
 
-    dut.uio_in[2].value = 1  # Decay
-    dut.uio_in[3].value = 0
-    await ClockCycles(dut.clk, 50)
+        await ClockCycles(dut.clk, 100)
 
-    initial_decay = dut.debug_decay.value
-    await ClockCycles(dut.clk, 100)
-    assert dut.debug_decay.value != initial_decay, "Expected `debug_decay` to change during decay phase"
-
-    dut.uio_in[4].value = 1  # Sustain
-    dut.uio_in[5].value = 0
-    await ClockCycles(dut.clk, 50)
-
-    initial_sustain = dut.debug_sustain.value
-    await ClockCycles(dut.clk, 100)
-    assert dut.debug_sustain.value == initial_sustain, "Expected `debug_sustain` to remain constant during sustain phase"
-
-    dut.uio_in[6].value = 1  # Release
-    dut.uio_in[7].value = 0
-    await ClockCycles(dut.clk, 50)
-
-    initial_rel = dut.debug_rel.value
-    await ClockCycles(dut.clk, 100)
-    assert dut.debug_rel.value != initial_rel, "Expected `debug_rel` to change during release phase"
+        if phase == "Sustain":
+            assert debug_signal.value == initial_value, f"Expected `{phase}` to remain constant"
+        else:
+            assert debug_signal.value != initial_value, f"Expected `{phase}` to change"
 
     # Verify I2S output: sck, ws, and sd
     for _ in range(10):
         await ClockCycles(dut.clk, 200)
-        if is_resolvable(dut.uo_out.value[0:3]):
+        if is_resolvable([dut.uo_out[i].value for i in range(3)]):
             break
 
-    assert is_resolvable(dut.uo_out.value[0:3]), "uo_out[0:3] contains unresolved states after retries."
+    assert is_resolvable([dut.uo_out[i].value for i in range(3)]), "uo_out[0:3] contains unresolved states after retries."
 
     initial_sck = dut.uo_out[0].value  # sck
     await ClockCycles(dut.clk, 10)
