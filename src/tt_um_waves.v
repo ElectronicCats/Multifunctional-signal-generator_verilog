@@ -12,7 +12,7 @@ module tt_um_waves (
     // UART signal
     wire uart_rx = ui_in[0];
     wire [5:0] freq_select;
-    wire [1:0] wave_select;
+    wire [2:0] wave_select;
     wire unused_ui_in = |ui_in[7:1];
 
     // I2S signals
@@ -159,17 +159,17 @@ module tt_um_waves (
     // Select the wave
     always @(*) begin
     if (white_noise_en) begin
-        selected_wave = white_noise_out; // Use white noise if enabled
+    	selected_wave = white_noise_out;
     end else begin
-        case (wave_select)
-            2'b00: selected_wave = tri_wave_out;
-            2'b01: selected_wave = saw_wave_out;
-            2'b10: selected_wave = sqr_wave_out;
-            2'b11: selected_wave = sine_wave_out;
-            default: selected_wave = 8'd0;
+    	case (wave_select)
+        	3'b000: selected_wave = tri_wave_out;
+        	3'b001: selected_wave = saw_wave_out;
+        	3'b010: selected_wave = sqr_wave_out;
+        	3'b011: selected_wave = sine_wave_out;
+        	default: selected_wave = 8'd0;
         endcase
+     end
     end
-end
 
 
     // I2S output module for selected_wave modulated by ADSR
@@ -210,7 +210,7 @@ module uart_receiver (
     input wire rst_n,
     input wire rx,
     output reg [5:0] freq_select, // 6-bit Frequency selection
-    output reg [1:0] wave_select, // 2-bit Wave type selection
+    output reg [2:0] wave_select, // 2-bit Wave type selection
     output reg white_noise_en     // Enable flag for white noise
 );
 
@@ -224,8 +224,8 @@ module uart_receiver (
             bit_count <= 3'd0;
             receiving <= 1'b0;
             freq_select <= 6'd0;
-            wave_select <= 2'd0;
-            white_noise_en <= 1'b0; // Initialize white noise as disabled
+            white_noise_en <= 1'b0;  // Reset white noise to off on reset
+            wave_select <= 3'b000;   // Default to triangle wave on reset // Initialize white noise as disabled
         end else begin
             if (rx == 0 && !receiving) begin
                 receiving <= 1'b1;
@@ -238,11 +238,11 @@ module uart_receiver (
 
                     // Wave selection based on specific byte values
                     case (received_byte)
-                        8'h54: wave_select <= 2'b00; // 'T' - Triangle wave
-                        8'h53: wave_select <= 2'b01; // 'S' - Sawtooth wave
-                        8'h51: wave_select <= 2'b10; // 'Q' - Square wave
-                        8'h4E: wave_select <= 2'b11; // 'N' - Sine wave
-                        default: wave_select <= 2'b00; //
+                        8'h54: wave_select <= 3'b00; // 'T' - Triangle wave
+                        8'h53: wave_select <= 3'b01; // 'S' - Sawtooth wave
+                        8'h51: wave_select <= 3'b10; // 'Q' - Square wave
+                        8'h4E: wave_select <= 3'b11; // 'N' - Sine wave
+                        default: wave_select <= 3'b00; //
                     endcase
 
                     // White noise enable based on 'W' (ASCII 0x57)
@@ -795,3 +795,6 @@ module encoder #(
         end
     end
 endmodule
+
+
+
