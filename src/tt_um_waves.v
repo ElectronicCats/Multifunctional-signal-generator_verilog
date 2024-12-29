@@ -158,18 +158,16 @@ module tt_um_waves (
 
     // Select the wave
     always @(*) begin
-    if (white_noise_en) begin
-    	selected_wave = white_noise_out;
-    end else begin
-    	case (wave_select)
-        	3'b000: selected_wave = tri_wave_out;
-        	3'b001: selected_wave = saw_wave_out;
-        	3'b010: selected_wave = sqr_wave_out;
-        	3'b011: selected_wave = sine_wave_out;
-        	default: selected_wave = 8'd0;
-        endcase
+    	case ({white_noise_en, wave_select})
+        	4'b0000: selected_wave = white_noise_out;       // White noise enabled, ignore wave_select
+        	4'b0001: selected_wave = tri_wave_out;          // Triangle wave
+        	4'b0010: selected_wave = saw_wave_out;          // Sawtooth wave
+        	4'b0011: selected_wave = sqr_wave_out;          // Square wave
+        	4'b0100: selected_wave = sine_wave_out;         // Sine wave
+        	default: selected_wave = 8'd0;                  // Undefined state, default to 0
+    	endcase
      end
-    end
+
 
 
     // I2S output module for selected_wave modulated by ADSR
@@ -209,62 +207,78 @@ module uart_receiver (
     input wire clk,
     input wire rst_n,
     input wire rx,
-    output reg [5:0] freq_select, // 6-bit Frequency selection
-    output reg [2:0] wave_select, // 2-bit Wave type selection
-    output reg white_noise_en     // Enable flag for white noise
+    output reg [5:0] freq_select, // Frequency selection
+    output reg [2:0] wave_select, // Wave type selection
+    output reg white_noise_en     // White noise enable
 );
 
-    reg [7:0] received_byte;      // Stores the full received byte
-    reg [2:0] bit_count;          // Counts bits in the received byte (3 bits cover range 0-7)
-    reg receiving;                // Flag for UART reception in progress
+    reg [7:0] received_byte;  // Received byte buffer
+    reg [2:0] bit_count;      // Bit count (0-7 for 8 bits)
+    reg receiving;            // UART receiving flag
+    reg [1:0] state;          // State machine: 0 = idle, 1 = receiving, 2 = processing
+    wire start_bit;           // Detect start bit
+    wire stop_bit;            // Detect stop bit
+
+    localparam IDLE       = 2'b00;
+    localparam RECEIVING  = 2'b01;
+    localparam PROCESSING = 2'b10;
+
+    assign start_bit = (rx == 1'b0 && state == IDLE); // Falling edge indicates start bit
+    assign stop_bit  = (bit_count == 3'd7 && state == RECEIVING);
 
     always @(posedge clk) begin
         if (!rst_n) begin
+            // Reset all registers
             received_byte <= 8'd0;
             bit_count <= 3'd0;
             receiving <= 1'b0;
             freq_select <= 6'd0;
-            white_noise_en <= 1'b0;  // Reset white noise to off on reset
-            wave_select <= 3'b000;   // Default to triangle wave on reset // Initialize white noise as disabled
+            wave_select <= 3'b000;  // Default to triangle wave
+            white_noise_en <= 1'b0; // Disable white noise
+            state <= IDLE;
         end else begin
-            if (rx == 0 && !receiving) begin
-                receiving <= 1'b1;
-                bit_count <= 0;
-            end else if (receiving) begin
-                received_byte[bit_count] <= rx;
-                bit_count <= bit_count + 1;
-                if (bit_count == 3'd7) begin
-                    receiving <= 1'b0;
-
-                    // Wave selection based on specific byte values
-                    case (received_byte)
-                        8'h54: wave_select <= 3'b00; // 'T' - Triangle wave
-                        8'h53: wave_select <= 3'b01; // 'S' - Sawtooth wave
-                        8'h51: wave_select <= 3'b10; // 'Q' - Square wave
-                        8'h4E: wave_select <= 3'b11; // 'N' - Sine wave
-                        default: wave_select <= 3'b00; //
-                    endcase
-
-                    // White noise enable based on 'W' (ASCII 0x57)
-                    if (received_byte == 8'h57) begin
-                        white_noise_en <= 1'b1; // Enable white noise
-                    end else if (received_byte == 8'h4F) begin
-                        white_noise_en <= 1'b0; // 'O' - Disable white noise
-                    end
-
-                    // Frequency selection based on ASCII character range
-                    if (received_byte >= 8'h30 && received_byte <= 8'h39) begin
-                        freq_select <= received_byte[5:0] - 6'd48; // ASCII '0'-'9' to 0-9
-                    end else if (received_byte >= 8'h41 && received_byte <= 8'h46) begin
-                        freq_select <= received_byte[5:0] - 6'd55; // ASCII 'A'-'F' to 10-15
-                    end else begin
-                        freq_select <= 6'd0; // Default to 0 if invalid byte
+            case (state)
+                IDLE: begin
+                    if (start_bit) begin
+                        receiving <= 1'b1;
+                        bit_count <= 0;
+                        state <= RECEIVING;
                     end
                 end
-            end
+
+                RECEIVING: begin
+                    if (receiving) begin
+                        received_byte[bit_count] <= rx;
+                        bit_count <= bit_count + 1;
+                        if (stop_bit) begin
+                            receiving <= 1'b0;
+                            state <= PROCESSING;
+                        end
+                    end
+                end
+
+                PROCESSING: begin
+                    case (received_byte)
+                        8'h54: wave_select <= 3'b000; // 'T' - Triangle wave
+                        8'h53: wave_select <= 3'b001; // 'S' - Sawtooth wave
+                        8'h51: wave_select <= 3'b010; // 'Q' - Square wave
+                        8'h57: wave_select <= 3'b011; // 'W' - Sine wave
+                        8'h4E: white_noise_en <= 1'b1; // 'N' - Enable white noise
+                        8'h46: white_noise_en <= 1'b0; // 'F' - Disable white noise
+                        default: begin
+                            freq_select <= received_byte[5:0]; // Use the lower 6 bits for frequency
+                        end
+                    endcase
+                    state <= IDLE;
+                end
+
+                default: state <= IDLE;
+            endcase
         end
     end
+
 endmodule
+
 
 module white_noise_generator (
     input wire clk,
@@ -714,13 +728,13 @@ module adsr_generator (
                     end
                 end
                 STATE_RELEASE: begin
-                    // Use the release parameter to adjust the rate of decrease
-                    if (amplitude > 0) begin
-                        amplitude <= amplitude - rel;
-                    end else begin
-                        state <= STATE_IDLE;
-                    end
-                end
+    		      if (amplitude > 0) begin
+        		amplitude <= amplitude - rel;
+    			end else begin
+        		state <= STATE_IDLE;
+    		      end
+		   end
+
                 default: state <= STATE_IDLE;
             endcase
         end
