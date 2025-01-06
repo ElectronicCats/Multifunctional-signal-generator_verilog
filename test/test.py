@@ -2,7 +2,6 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles
 
-
 async def send_uart_byte(dut, byte_value):
     """Simulate UART byte transmission with a start bit, 8 data bits, and a stop bit."""
     dut.ui_in[0].value = 0  # Start bit
@@ -28,7 +27,7 @@ async def test_tt_um_waves(dut):
     dut.ena.value = 1
     await ClockCycles(dut.clk, 10)
     dut.rst_n.value = 1
-    await ClockCycles(dut.clk, 10)
+    await ClockCycles(dut.clk, 20)  # Increased reset stabilization time
 
     # Log initial state
     initial_waveform = (dut.uo_out[2].value << 2) | (dut.uo_out[1].value << 1) | dut.uo_out[0].value
@@ -46,11 +45,18 @@ async def test_tt_um_waves(dut):
     for byte, expected_value in waveforms.items():
         dut._log.info(f"Sending UART byte: {byte} (Expected waveform: {expected_value})")
         await send_uart_byte(dut, byte)
-        await ClockCycles(dut.clk, 2000)  # Extended delay for UART processing
+        await ClockCycles(dut.clk, 5000)  # Increased wait time for stability
 
         # Read and log the waveform selection
         selected_wave = (dut.uo_out[2].value << 2) | (dut.uo_out[1].value << 1) | dut.uo_out[0].value
         dut._log.info(f"UART Byte: {byte}, Expected: {expected_value}, Got: {selected_wave}")
+
+        # Verify consistency over multiple cycles
+        for _ in range(5):
+            current_wave = (dut.uo_out[2].value << 2) | (dut.uo_out[1].value << 1) | dut.uo_out[0].value
+            assert selected_wave == current_wave, \
+                f"Inconsistent waveform selection: Expected {selected_wave}, got {current_wave}"
+
         assert selected_wave == expected_value, f"Expected waveform {expected_value}, got {selected_wave}"
 
     # Test ADSR modulation phases
@@ -68,7 +74,7 @@ async def test_tt_um_waves(dut):
         dut.uio_in[pins[1]].value = 0  # Deactivate encoder B
         await ClockCycles(dut.clk, 50)
         await ClockCycles(dut.clk, 100)
-        
+
         # Verify ADSR phase output signal
         assert dut.uo_out[7].value == 1, f"Expected ADSR {phase} phase output signal"
         dut._log.info(f"ADSR {phase} phase signal verified")

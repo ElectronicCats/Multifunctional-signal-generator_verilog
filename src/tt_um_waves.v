@@ -158,6 +158,7 @@ module tt_um_waves (
 
     // Select the wave
     always @(*) begin
+        $display("wave_select = %b", wave_select); 
     	case ({white_noise_en, wave_select})
         	4'b0000: selected_wave = white_noise_out;       // White noise enabled, ignore wave_select
         	4'b0001: selected_wave = tri_wave_out;          // Triangle wave
