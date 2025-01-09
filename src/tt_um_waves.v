@@ -260,12 +260,17 @@ module uart_receiver (
 
                 PROCESSING: begin
                     case (received_byte)
+                        8'h4E: begin
+                            white_noise_en <= 1'b1; // 'N' - Enable white noise
+                            wave_select <= 3'b000;  // Default wave selection ignored
+                        end
+                        8'h46: begin
+                            white_noise_en <= 1'b0; // 'F' - Disable white noise
+                        end
                         8'h54: wave_select <= 3'b000; // 'T' - Triangle wave
                         8'h53: wave_select <= 3'b001; // 'S' - Sawtooth wave
                         8'h51: wave_select <= 3'b010; // 'Q' - Square wave
                         8'h57: wave_select <= 3'b011; // 'W' - Sine wave
-                        8'h4E: white_noise_en <= 1'b1; // 'N' - Enable white noise
-                        8'h46: white_noise_en <= 1'b0; // 'F' - Disable white noise
                         default: begin
                             freq_select <= received_byte[5:0]; // Use the lower 6 bits for frequency
                         end
@@ -277,8 +282,8 @@ module uart_receiver (
             endcase
         end
     end
-
 endmodule
+
 
 
 module white_noise_generator (
